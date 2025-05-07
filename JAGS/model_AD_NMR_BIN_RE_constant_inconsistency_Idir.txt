@@ -1,0 +1,64 @@
+#ISBN 9781118951729  and 10.1002/jrsm.1327
+# Network Meta-Analysis for Decision-Making
+# WinBUGS code for NMA: Binomial likelihood, logit link, fixed effect model.
+# Binomial likelihood, logit link
+# Random effects model
+model{ # *** PROGRAM STARTS
+	for(i in 1:ns){ # LOOP THROUGH STUDIES
+		w[i,1] <- 0
+		mu[i] ~ dnorm(0,.0001) # vague priors for all trial baselines
+		delta[i,1]<- 0 #treatment effect is zero for control arm since control arm is not included in delta defining loop
+	
+		for (k in 1:na[i]) { # LOOP THROUGH ARMS
+			r[i,k] ~ dbin(p[i,k],n[i,k]) # binomial likelihood
+			logit(p[i,k]) <- mu[i] + delta[i,k] +(beta[t[i,k], t[i,1]]) * (x[i]-mx)*I_dir[i,k] # model for linear predictor
+			rhat[i,k] <-p[i,k] * n[i,k] # expected value of the numerators
+			dev[i,k] <- 2 * (r[i,k] * (log(r[i,k])-log(rhat[i,k]))+ (n[i,k]-r[i,k]) * (log(n[i,k]-r[i,k]) - log(n[i,k]-rhat[i,k]))) #Deviance contribution
+		}
+		
+		for (k in 2:na[i]) { # LOOP THROUGH ARMS
+			#sw[i,k]  ~ dnorm(0,.0001)
+			delta[i,k] ~ dnorm(md[i,k],precd[i,k]) # trial-specific LOR distributions
+			md[i,k] <-d[t[i,k]] - d[t[i,1]] + sw[i,k] # mean of LOR distributions (multi-arm trial correction)
+			precd[i,k] <-prec *2*(k-1)/k # precision of LOR distributions (with multi-arm trial correction)
+			w[i,k] <-(delta[i,k] - d[t[i,k]] + d[t[i,1]]) # adjustment for multi-arm RCTs
+			sw[i,k] <-sum(w[i,1:(k-1)])/(k-1) # cumulative adjustment for multi-arm trials 1:(k-1) MUST BE IN PARENTHESES for JAGS
+		}
+	
+		resdev[i] <- sum(dev[i,1:na[i]])
+	}
+	
+
+
+	totresdev <- sum(resdev[])
+	d[1]<-0 # treatment effect is zero for reference treatment
+	
+	for (k in 2:nt){ d[k] ~ dnorm(0,.0001) } # vague priors for treatment effects
+	tau ~ dnorm(0,1)T(0,1) # vague prior for between-trial SD.
+	sd2<-pow(tau,2) # tau2 or between-trial variance
+	prec <- pow(tau,-2) # between-trial precision = (1/between-trial variance)
+	
+	# begin assumption of independent inconsistent interactions from 10.1002/jrsm.1327
+		 for (k in 1:nt) {
+		   beta[k,k] <- 0
+		 }
+		
+		 for (c in 1:(nt-1)){
+		   for (k in (c+1):nt) {
+			 #beta[c,k] <- -beta[k,c]
+			 beta[c,k] <- beta[k,c]
+		     beta[k,c]<-B
+		   }
+		 }
+		 B ~ dnorm(0,0.0001)
+		# end assumption of independent interactions from 10.1002/jrsm.1327
+	
+	# pairwise ORs and LORs for all possible pairwise comparisons
+	for (c in 1:nt) {
+		for (k in 1:nt) {
+			OR[k,c] <- exp(d[k] - d[c])
+			LOR[k,c] <- (d[k]-d[c])
+			lor0[k,c]<-LOR[k,c]+(beta[k,c]*(0-mx))
+		}
+		}
+}
