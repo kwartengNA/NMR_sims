@@ -6,3 +6,4 @@ temp.*
 mobetex.R
 packages.R
 seed_*
+*.Rproj
