@@ -87,9 +87,11 @@ if(true_arms=="multiarm"){
 }
 rm(OR,logOR)
 
-keep_studies<-sample(1:length(unique(data2[[1]]$study)),#all study numbers
-                           floor(keep_prop*length(unique(data2[[1]]$study))), #number of studies to keep
-                           replace = FALSE)
+if(is.null(keep_studies)){
+  keep_studies<-sample(1:length(unique(data2[[1]]$study)),#all study numbers
+                             floor(keep_prop*length(unique(data2[[1]]$study))), #number of studies to keep
+                             replace = FALSE)
+} # otherwise use the existing keep studies
 for(i in 1:N.sim){
 data2[[i]]<-data2[[i]]%>%
   filter(study%in%c(keep_studies))

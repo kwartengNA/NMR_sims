@@ -317,7 +317,9 @@ NMA_res<-bind_rows(NMA_res, .id = "simulation")%>%
   mutate(across(.cols=all_of(c("TE_beta_NMR", "seTE_beta_NMR", "lci_beta_NMR", "uci_beta_NMR")), ~ ifelse(is.na(.comp)==FALSE, 0, .x)))%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
-                               contains("_tau_")))%>%
+                               contains("_tau_"),
+                               "ML",
+                               "REML"))%>%
   filter(is.na(value)==FALSE|error==TRUE)%>%
   mutate(paramtype=case_when(grepl("_beta",name)~"beta",
                              grepl("_d",name)~"d",
@@ -333,7 +335,9 @@ NMA_res<-bind_rows(NMA_res, .id = "simulation")%>%
 ind_res<-bind_rows(ind_res, .id = "simulation")%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
-                               contains("_tau_")))%>%
+                               contains("_tau_"),
+                               "ML",
+                               "REML"))%>%
   filter(is.na(value)==FALSE|error==TRUE)%>%
   mutate(paramtype=case_when(grepl("_beta",name)~"beta",
                              grepl("_d",name)~"d",
@@ -349,7 +353,9 @@ ind_res<-bind_rows(ind_res, .id = "simulation")%>%
 common_res<-bind_rows(common_res, .id = "simulation")%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
-                               contains("_tau_")))%>%
+                               contains("_tau_"),
+                               "ML",
+                               "REML"))%>%
   filter(is.na(value)==FALSE|error==TRUE)%>%
   mutate(paramtype=case_when(grepl("_beta",name)~"beta",
                              grepl("_d",name)~"d",
@@ -366,7 +372,9 @@ common_res<-bind_rows(common_res, .id = "simulation")%>%
 common_UMIE_res<-bind_rows(common_UMIE_res, .id = "simulation")%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
-                               contains("_tau_")))%>%
+                               contains("_tau_"),
+                               "ML",
+                               "REML"))%>%
   filter(is.na(value)==FALSE|error==TRUE)%>%
   mutate(paramtype=case_when(grepl("_beta",name)~"beta",
                              grepl("_d",name)~"d",
@@ -382,7 +390,9 @@ common_UMIE_res<-bind_rows(common_UMIE_res, .id = "simulation")%>%
 ind_UMIE_res<-bind_rows(ind_UMIE_res, .id = "simulation")%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
-                               contains("_tau_")))%>%
+                               contains("_tau_"),
+                               "ML",
+                               "REML"))%>%
   filter(is.na(value)==FALSE|error==TRUE)%>%
   mutate(paramtype=case_when(grepl("_beta",name)~"beta",
                              grepl("_d",name)~"d",
@@ -400,7 +410,9 @@ ind_UMIE_res<-bind_rows(ind_UMIE_res, .id = "simulation")%>%
 ind_UMIE_resmin<-bind_rows(ind_UMIE_resmin, .id = "simulation")%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
-                               contains("_tau_")))%>%
+                               contains("_tau_"),
+                               "ML",
+                               "REML"))%>%
   filter(is.na(value)==FALSE|error==TRUE)%>%
   mutate(paramtype=case_when(grepl("_beta",name)~"beta",
                              grepl("_d",name)~"d",
