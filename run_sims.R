@@ -20,11 +20,11 @@ starttime_loop <- Sys.time()
 # start loop  ############################
 consistency_options<-c(TRUE,FALSE)
 assumption_options<-c("common", "independent", "NMA")
-arm_options<-c("multiarm", "twoarm", "mixed_arm")
+arm_options<-c("multiarm", "mixed_arm", "twoarm") #, "twoarm"
 tau_options<-c("none", "moderate", "high") # #0,0.25,0.5 
 density_options<-c( "low","moderate","all") #1,0.5,0.25 
 event_rate_options<-c("moderate") #"rare", "moderate", "frequent"
-outcome_options<-c("continuous", "binary")
+outcome_options<-c("continuous", "binary")#, "binary"
 interaction_direction_options<-c("positive") #"positive", "negative", "random"
 
 for (true_consistency in consistency_options) {
@@ -60,10 +60,18 @@ for (true_consistency in consistency_options) {
                 keep_prop<-case_when(keep_prop_txt=="all"~1,
                                      keep_prop_txt=="moderate"~0.5,#sparse. doesn't matter for multiarm.
                                      keep_prop_txt=="low"~0.25)
+                
+                keep_studies<-NULL
+                if(exists(paste("keep_studies", keep_prop_txt, sep="_"))){
+                  assign(keep_studies,get(paste("keep_studies", keep_prop_txt, sep="_")))
+                }
+                
+                # stop()
                 if (outcome == "continuous") {
                   tryCatch({
                     source("NMR_simulated_ex_cont_generic.R")
                     status_list["success"]<-TRUE
+                    
                   }, error = function(e) 
                     print("error in sim"),
                     status_list["success"]<-FALSE
@@ -81,10 +89,13 @@ for (true_consistency in consistency_options) {
                           # ifelse(rbinom(n=1,size=1,prob=0.5),error,TRUE)
                         source("NMR_simulated_ex_bin_generic.R")
                         status_list["success"]<-TRUE
+                        
                         }, error = function(e)
                           print("error in sim"),
                           status_list["success"]<-FALSE)
                   }
+                
+                
     
                     
             if(is_cluster_active()==TRUE) {
