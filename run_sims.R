@@ -20,7 +20,7 @@ starttime_loop <- Sys.time()
 # start loop  ############################
 consistency_options<-c(TRUE,FALSE)
 assumption_options<-c("common", "independent", "NMA")
-arm_options<-c("multiarm", "mixed_arm", "twoarm") #, "twoarm"
+arm_options<-c("multiarm", "mixarm", "twoarm") #"multiarm", "mixarm", "twoarm"
 tau_options<-c("none", "moderate", "high") # #0,0.25,0.5 
 density_options<-c( "low","moderate","all") #1,0.5,0.25 
 event_rate_options<-c("moderate") #"rare", "moderate", "frequent"
@@ -46,7 +46,7 @@ for (true_consistency in consistency_options) {
                   next
                 }
 
-                keepls <- c(ls(), "keepls")
+                keepls <- c(ls(), "keepls", paste("keep_studies", keep_prop_txt, sep="_"))
                 loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, ifelse(true_consistency == FALSE, "UMIE", "consistency"),
                                  true_assumption,true_arms, paste("tau",tau_txt,sep="_"), paste("connect",keep_prop_txt,sep="_"), 
                                  paste(interaction_direction, "beta", sep="_"), paste(ifelse(outcome=="continuous", "NA", event_rate), "events", sep="_"), sep="/")
@@ -63,7 +63,7 @@ for (true_consistency in consistency_options) {
                 
                 keep_studies<-NULL
                 if(exists(paste("keep_studies", keep_prop_txt, sep="_"))){
-                  assign(keep_studies,get(paste("keep_studies", keep_prop_txt, sep="_")))
+                  assign("keep_studies",get(paste("keep_studies", keep_prop_txt, sep="_")))
                 }
                 
                 # stop()
@@ -78,7 +78,7 @@ for (true_consistency in consistency_options) {
                   )
                   
                   } else if (outcome == "binary") {
-                        keepls <- c(ls(), "keepls")
+                        keepls <- c(ls(), "keepls", paste("keep_studies", keep_prop_txt, sep="_"))
                         minr<-case_when(event_rate=="rare"~0.03,
                                         event_rate=="moderate"~0.3,
                                         event_rate=="frequent"~1-0.05)
@@ -102,6 +102,7 @@ for (true_consistency in consistency_options) {
               stopCluster(cl)
             }
             
+            assign(paste("keep_studies", keep_prop_txt, sep="_"), keep_studies)
             loopnum<-loopnum+1
             status_list[["loopnum"]]<-loopnum
             status_list[["duration"]]<-Sys.time() - starttime_loop
@@ -137,7 +138,7 @@ expected<-data.frame(true_consistency = consistency_options) %>%
   # filter(!interaction_direction %in% c("random", "negative"))%>%
   filter(!(outcome=="continuous" & is.na(event_rate)==FALSE) &
            # !(outcome=="continuous" & interaction_direction!="random")&
-           # !(true_arms=="multiarm" & keep_prop_txt!="all")&
+           !(true_arms=="multiarm" & keep_prop_txt!="all")&
            # !(true_arms=="multiarm" & true_consistency!=TRUE)&
            !(outcome=="binary" & is.na(event_rate)==TRUE))%>%
   mutate(expected=TRUE)
