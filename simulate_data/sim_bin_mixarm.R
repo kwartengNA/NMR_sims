@@ -1,21 +1,33 @@
 # Combine 2 and multi-arm data binary ##################
 # run simulations for two arm and multiarm #############
 #2 arm studies 
-source("sim_bin2arm.R")
+source("simulate_data/sim_bin2arm.R")
 arm2_data2<-data2
 arm2_data1<-data1
-source("sim_bin_multiarm.R")
+source("simulate_data/sim_bin_multiarm.R")
 armmulti_data2<-data2
 armmulti_data1<-data1
 
 # randomly define number of arms in study ##################################
-if(NT>3){
-  N.arms<-data.frame(study=1:(NS),
-                     n_arms=rbinom(n=NS, size=NT-2, prob=c(0.843,0.132,rep((1-0.975)/(NT-4), NT-4)))+2) #nmadb
-} else {
-  N.arms<-data.frame(study=1:(NS),
-                     n_arms=rbinom(n=NS, size=NT-2, prob=c(0.843,0.132))+2) #nmadb
-}
+if(exists("N.arms")) {
+  N.arms<-N.arms
+  } else if(NT>3){
+    # new approach. might lose generating reference treatment in UMIE models
+    N.arms<-data.frame(study=1:(NS),
+                     n_arms=rbinom(n=NS, size=NT-2, prob=c(0.843,0.132,rep((1-0.975)/(NT-4), NT-4)))+2)%>% #nmadb
+    cross_join(data.frame(arms=c(1:NT)))%>%
+      group_by(study)%>%
+      mutate(keep_arms=ifelse(row_number() %in% sample(x = n(), size=unique(n_arms)),1,0))%>%
+      ungroup()
+    
+  } else {
+    N.arms<-data.frame(study=1:(NS),
+                     n_arms=rbinom(n=NS, size=NT-2, prob=c(0.843,0.132))+2)%>% #nmadb
+      cross_join(data.frame(arms=c(1:NT)))%>%
+      group_by(study)%>%
+      mutate(keep_arms=ifelse(row_number() %in% sample(x = n(), size=unique(n_arms)),1,0))%>%
+      ungroup()
+    }
 
 # combine multi-arm and two-arm data ########################
 # such that so that they fulfill the conditions of number of studies per comparison
@@ -23,11 +35,12 @@ rm(data1,data2)# just to ensure we only have 1 version of the final data
 data2 <-NULL # retain results. this overwrites the other data2 results for compatibility with existing syntax
 
 for(nsim in 1:N.sim){
-  temp_armmulti_data2<-armmulti_data2[[nsim]]%>%left_join(N.arms, by=c("study"))%>%
+  temp_armmulti_data2<-armmulti_data2[[nsim]]%>%left_join(N.arms, by=c("study", "treat"="arms"))%>%
     group_by(study, Ival_gen)%>%
-    mutate(n_arms_temp=ifelse(Ival_gen==0,1,n_arms),
-           keep_arms=case_when(Ival_gen==0~1,
-                               Ival_gen==1~ifelse(row_number()%in% sample(x = n(), size=unique(n_arms_temp)-1),1,0)))%>%
+    mutate(n_arms_temp=ifelse(Ival_gen==0,1,n_arms)#,
+           # keep_arms=case_when(Ival_gen==0~1,
+           #                     Ival_gen==1~ifelse(row_number()%in% sample(x = n(), size=unique(n_arms_temp)-1),1,0))
+		   )%>%
     ungroup()%>%
     filter(keep_arms==1)%>%
     select(-c(n_arms_temp, treat.ref, n_arms, keep_arms))%>%
