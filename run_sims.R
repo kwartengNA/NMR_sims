@@ -17,7 +17,7 @@ N.sim <-20
 loopnum<-0
 status_frame<-as.data.frame(NULL)
 starttime_loop <- Sys.time()
-# start loop  ############################
+# scenario definitions  ############################
 consistency_options<-c(TRUE,FALSE)
 assumption_options<-c("common", "independent", "NMA")
 arm_options<-c("multiarm", "mixarm", "twoarm") #"multiarm", "mixarm", "twoarm"
@@ -27,6 +27,7 @@ event_rate_options<-c("moderate") #"rare", "moderate", "frequent"
 outcome_options<-c("continuous", "binary")#, "binary"
 interaction_direction_options<-c("positive") #"positive", "negative", "random"
 
+# start loop  ############################
 for (true_consistency in consistency_options) {
   for (true_assumption in assumption_options) {
     for (true_arms in arm_options) {
@@ -46,7 +47,7 @@ for (true_consistency in consistency_options) {
                   next
                 }
 
-                keepls <- c(ls(), "keepls", paste("keep_studies", keep_prop_txt, sep="_"))
+                keepls <- c(ls(), "N.arms","keepls", paste("keep_studies", keep_prop_txt,true_arms, sep="_"))
                 loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, ifelse(true_consistency == FALSE, "UMIE", "consistency"),
                                  true_assumption,true_arms, paste("tau",tau_txt,sep="_"), paste("connect",keep_prop_txt,sep="_"), 
                                  paste(interaction_direction, "beta", sep="_"), paste(ifelse(outcome=="continuous", "NA", event_rate), "events", sep="_"), sep="/")
@@ -63,10 +64,9 @@ for (true_consistency in consistency_options) {
                 
                 keep_studies<-NULL
                 if(exists(paste("keep_studies", keep_prop_txt, sep="_"))){
-                  assign("keep_studies",get(paste("keep_studies", keep_prop_txt, sep="_")))
+                  assign(keep_studies,get(paste("keep_studies", keep_prop_txt, sep="_")))
                 }
                 
-                # stop()
                 if (outcome == "continuous") {
                   tryCatch({
                     source("NMR_simulated_ex_cont_generic.R")
@@ -78,7 +78,7 @@ for (true_consistency in consistency_options) {
                   )
                   
                   } else if (outcome == "binary") {
-                        keepls <- c(ls(), "keepls", paste("keep_studies", keep_prop_txt, sep="_"))
+                        keepls <- c(ls(), "keepls")
                         minr<-case_when(event_rate=="rare"~0.03,
                                         event_rate=="moderate"~0.3,
                                         event_rate=="frequent"~1-0.05)
@@ -102,7 +102,7 @@ for (true_consistency in consistency_options) {
               stopCluster(cl)
             }
             
-            assign(paste("keep_studies", keep_prop_txt, sep="_"), keep_studies)
+            assign(paste("keep_studies", keep_prop_txt, true_arms, sep="_"), keep_studies)
             loopnum<-loopnum+1
             status_list[["loopnum"]]<-loopnum
             status_list[["duration"]]<-Sys.time() - starttime_loop
@@ -147,5 +147,6 @@ expected%>%
   full_join(status_frame%>%
               mutate(attempted=TRUE,
                      true_consistency=as.logical(true_consistency)))%>%
-  count(true_arms,outcome,
+  # filter(success ==FALSE)%>%
+  count(true_arms,outcome,#keep_prop_txt,
         expected, attempted, success)
