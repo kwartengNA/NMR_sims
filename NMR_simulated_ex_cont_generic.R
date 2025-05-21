@@ -76,17 +76,21 @@ maxxrange<-5
 minxrange<--1
 true_arms=ifelse(exists("true_arms")==FALSE,"twoarm",true_arms)
 if(true_arms=="multiarm"){
-   source("sim_cont_multiarm.R")
+   source("simulate_data/sim_cont_multiarm.R")
 } else if(true_arms=="mixarm"){
-   source("sim_cont_mixarm.R")
+   source("simulate_data/sim_cont_mixarm.R")
 } else {
-  source("sim_cont2arm.R")
+  source("simulate_data/sim_cont2arm.R")
 }
 
+
 if(is.null(keep_studies)){
-  keep_studies<-sample(1:length(unique(data2[[1]]$study)),#all study numbers
-                             floor(keep_prop*length(unique(data2[[1]]$study))), #number of studies to keep
+  alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
+  allmultiarm<-data2[[1]]%>%count(study)%>%filter(n>2)
+  keep_studies<-sample(alltwoarm_studyids$study,#all 2 arm study numbers
+                       floor(keep_prop*length(unique(data2[[1]]$study)))-nrow(allmultiarm), #number of 2-arm studies to keep
                              replace = FALSE)
+  keep_studies<-c(keep_studies,allmultiarm$study)
 } # otherwise use the existing keep studies
 
 for(i in 1:N.sim){
@@ -173,12 +177,12 @@ kable(refdat%>%arrange(paramtype,Reference))
 
 ## ---- jagsmodels, eval=TRUE--------------------------------------------------------------
 # if the JAGS models are run separately, they require the same seed in order to obtain the same results
-source("Run_JAGS_Models_Cont_all.R")#WARNING HARDCODING
+source("run_models/Run_JAGS_Models_Cont_all.R")#WARNING HARDCODING
 
 
 ## ---- freqmodels-------------------------------------------------------------------------
 
-source("Run_Frequentist_Models_Cont2.R") #WARNING HARDCODING
+source("run_models/Run_Frequentist_Models_Cont2.R") #WARNING HARDCODING
 
 
 

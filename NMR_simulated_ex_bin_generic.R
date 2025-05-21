@@ -79,19 +79,23 @@ maxxrange<-5
 minxrange<--1
 true_arms=ifelse(exists("true_arms")==FALSE,"twoarm",true_arms)
 if(true_arms=="multiarm"){
-   source("sim_bin_multiarm.R")
+   source("simulate_data/sim_bin_multiarm.R")
 } else if(true_arms=="mixarm"){
-   source("sim_bin_mixarm.R")
+   source("simulate_data/sim_bin_mixarm.R")
 } else {
-  source("sim_bin2arm.R")
+  source("simulate_data/sim_bin2arm.R")
 }
 rm(OR,logOR)
 
 if(is.null(keep_studies)){
-  keep_studies<-sample(1:length(unique(data2[[1]]$study)),#all study numbers
-                             floor(keep_prop*length(unique(data2[[1]]$study))), #number of studies to keep
-                             replace = FALSE)
+  alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
+  allmultiarm<-data2[[1]]%>%count(study)%>%filter(n>2)
+  keep_studies<-sample(alltwoarm_studyids$study,#all 2 arm study numbers
+                       floor(keep_prop*length(unique(data2[[1]]$study)))-nrow(allmultiarm), #number of 2-arm studies to keep
+                       replace = FALSE)
+  keep_studies<-c(keep_studies,allmultiarm$study)
 } # otherwise use the existing keep studies
+
 for(i in 1:N.sim){
 data2[[i]]<-data2[[i]]%>%
   filter(study%in%c(keep_studies))
@@ -175,10 +179,10 @@ kable(refdat%>%arrange(paramtype,Reference))
 
 
 ## ---- jagsmodels, eval=TRUE--------------------------------------------------------------------------------------------------------------
-source("Run_JAGS_Models_Bin_all.R")
+source("run_models/Run_JAGS_Models_Bin_all.R")
 
 ## ---- freqmodels-------------------------------------------------------------------------------------------------------------------------
-source("Run_Frequentist_Models_Bin2.R")
+source("run_models/Run_Frequentist_Models_Bin2.R")
 
 
 ## ---- combres----------------------------------------------------------------------------------------------------------------------------
