@@ -63,8 +63,8 @@ for (true_consistency in consistency_options) {
                                      keep_prop_txt=="low"~0.25)
                 
                 keep_studies<-NULL
-                if(exists(paste("keep_studies", keep_prop_txt, sep="_"))){
-                  assign(keep_studies,get(paste("keep_studies", keep_prop_txt, sep="_")))
+                if(exists(paste("keep_studies", keep_prop_txt, true_arms, sep="_"))){
+                  assign("keep_studies",get(paste("keep_studies", keep_prop_txt, true_arms, sep="_")))
                 }
                 
                 if (outcome == "continuous") {
@@ -111,6 +111,7 @@ for (true_consistency in consistency_options) {
             print(loopdir)
             print(Sys.time() - starttime_loop)
             rm(list = ls()[!ls() %in% keepls])
+            
                   }
               } # end event rate
             
