@@ -82,7 +82,9 @@ if(true_arms=="multiarm"){
 } else {
   source("simulate_data/sim_cont2arm.R")
 }
-
+if(exists("keep_studies")==FALSE){
+  keep_studies<-NULL 
+}
 
 if(is.null(keep_studies)){
   alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
@@ -171,14 +173,14 @@ refdat<-as.data.frame.table(beta_x)%>%
   bind_rows(refdat)
 
 ## ---- refdat summary ###########
-kable(refdat_orig)
-kable(refdat%>%arrange(paramtype,Reference))
+# kable(refdat_orig)
+# kable(refdat%>%arrange(paramtype,Reference))
 
 
 ## ---- jagsmodels, eval=TRUE--------------------------------------------------------------
 # if the JAGS models are run separately, they require the same seed in order to obtain the same results
+gc()
 source("run_models/Run_JAGS_Models_Cont_all.R")#WARNING HARDCODING
-
 
 ## ---- freqmodels-------------------------------------------------------------------------
 
@@ -204,7 +206,8 @@ all_res<-all_jags_res_df%>%
   bind_rows(all_freq_res_df)%>%
   mutate(bias2=bias^2)
 rm(all_jags_res_df)
-  
+gc()
+
 graph_res<-all_res%>%
   filter(!paramtype%in%c("lor","LOR"))%>%
   group_by(model,simulation,paramtype,Comparator,Reference)%>%
@@ -255,18 +258,21 @@ t1<-graph_res%>%select(src,model,paramtype,#Rhat_max,
   mutate(seedval=seedval,
          datatype="independent multiarm")
 
-write.table(x = t1, 
-            file=paste(loopdir,"/continuous_summary_res.csv",sep=""), #WARNING HARDCODING
-          append = TRUE,
-          sep = ",",
-          col.names = FALSE,
-          row.names = FALSE,
-          quote = TRUE)
+# write.table(x = t1, 
+#             file=paste(loopdir,"/continuous_summary_res.csv",sep=""), #WARNING HARDCODING
+#           append = TRUE,
+#           sep = ",",
+#           col.names = FALSE,
+#           row.names = FALSE,
+#           quote = TRUE)
 
 
 ## ---- exportcsv--------------------------------------------------------------------------
-print(jagsseedval)
-write.csv(refdat,paste(loopdir,"/refdat_continuous.csv",sep="")) #WARNING HARDCODING
-write.csv(all_res,paste(loopdir,"/res_continuous.csv",sep="")) #WARNING HARDCODING
-write.csv(bind_rows(data2, .id = "sim"),paste(loopdir,"/data2_continuous.csv",sep="")) #WARNING HARDCODING
+# print(jagsseedval)
+# write.csv(refdat,paste(loopdir,"/refdat_continuous.csv",sep="")) #WARNING HARDCODING
+# write.csv(all_res,paste(loopdir,"/res_continuous.csv",sep="")) #WARNING HARDCODING
+# write.csv(bind_rows(data2, .id = "sim"),paste(loopdir,"/data2_continuous.csv",sep="")) #WARNING HARDCODING
 
+saveRDS(refdat, file = paste(loopdir,"/refdat_continuous.rds",sep=""), compress="xz")
+saveRDS(all_res, file = paste(loopdir,"/res_continuous.rds",sep=""), compress="xz")
+saveRDS(bind_rows(data2, .id = "sim"), file = paste(loopdir,"/data2_continuous.rds",sep=""), compress="xz")

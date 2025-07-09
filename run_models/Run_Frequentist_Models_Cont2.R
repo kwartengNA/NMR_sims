@@ -38,7 +38,8 @@ run_NMA<-function(data_filter){ # each individual dataset
     NMR_res<-data.frame(error=TRUE)}
   
   )
-  
+  rm(mynet, temp_nmr, temp_summary)
+  gc()
   return(NMR_res)
   
 }
@@ -81,7 +82,8 @@ run_ind<-function(data_filter){ # each individual dataset
     NMR_res<-data.frame(error=TRUE)}
   
   )
-  
+  rm(mynet, temp_nmr, temp_summary)
+  gc()
   return(NMR_res)
   
 }
@@ -123,7 +125,8 @@ run_ind_UMIE<-function(data_filter){ # each individual dataset
     NMR_res<-data.frame(error=TRUE)}
   
   )
-  
+  rm(mynet, temp_nmr, temp_summary)
+  gc()
   return(NMR_res)
   
 }
@@ -165,7 +168,8 @@ run_ind_UMIEmax<-function(data_filter){ # each individual dataset
     NMR_res<-data.frame(error=TRUE)}
   
   )
-  
+  rm(mynet, temp_nmr, temp_summary)
+  gc()
   return(NMR_res)
   
 }
@@ -207,7 +211,8 @@ run_common<-function(data_filter){ # each individual dataset
     NMR_res<-data.frame(error=TRUE)}
   
   )
-  
+  rm(mynet, temp_nmr, temp_summary)
+  gc()
   return(NMR_res)
   
 }
@@ -248,7 +253,8 @@ run_common_UMIE<-function(data_filter){ # each individual dataset
     NMR_res<-data.frame(error=TRUE)}
   
   )
-  
+  rm(mynet, temp_nmr, temp_summary)
+  gc()
   return(NMR_res)
   
 }

@@ -86,6 +86,9 @@ if(true_arms=="multiarm"){
   source("simulate_data/sim_bin2arm.R")
 }
 rm(OR,logOR)
+if(exists("keep_studies")==FALSE){
+  keep_studies<-NULL 
+}
 
 if(is.null(keep_studies)){
   alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
@@ -139,6 +142,7 @@ for(i in 1:(NT)){
     ungroup()%>%
     filter(is.na(Reference)==FALSE)%>%
     bind_rows(refdat)
+  gc()
 }
 
 # reverse comparisons
@@ -161,6 +165,7 @@ refdat<-refdat%>%
   bind_rows(refdat)%>%
   distinct()%>%
   mutate(comp=paste(Comparator, Reference))
+gc()
 
 refdat<-as.data.frame.table(beta_x)%>%
   rename(Estimate=Freq,
@@ -261,7 +266,10 @@ write.table(x = t1,
 
 ## ----exportcsv--------------------------------------------------------------------------------------------------------------------------
 print(jagsseedval)
-write.csv(refdat,paste(loopdir,"/refdat_binary.csv",sep=""))
-write.csv(all_res,paste(loopdir,"/res_binary.csv",sep=""))
-write.csv(bind_rows(data2, .id = "sim"),paste(loopdir,"/data2_binary.csv",sep=""))
+# write.csv(refdat,paste(loopdir,"/refdat_binary.csv",sep=""))
+# write.csv(all_res,paste(loopdir,"/res_binary.csv",sep=""))
+# write.csv(bind_rows(data2, .id = "sim"),paste(loopdir,"/data2_binary.csv",sep=""))
 
+saveRDS(refdat, file = paste(loopdir,"/refdat_binary.rds",sep=""), compress="xz")
+saveRDS(all_res, file = paste(loopdir,"/res_binary.rds",sep=""), compress="xz")
+saveRDS(bind_rows(data2, .id = "sim"), file = paste(loopdir,"/data2_binary.rds",sep=""), compress="xz")
