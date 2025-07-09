@@ -1,16 +1,24 @@
 options(save.workspace = "no")
-.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )
 num_cores<-2
 # run simulations
 # libs and functions ############################
+library(parallel)
 library(dplyr)
-sessionInfo()
+library(ggplot2)
+# library(tibble)
+library(tidyr)
+library(jagsUI)
+library(netmeta)
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+source("netmetareg.R")
+# sessionInfo()
 is_cluster_active <- function(){tryCatch({
   response <- parLapply(cl, 1:length(cl), function(x) TRUE)
   all(unlist(response))  # Check if all nodes responded
 }, error = function(e) FALSE)  # If an error occurs, assume inactive)
 }
-gendir <- getwd() # /h/kwarteng #"C:/Users/kwarteng/Documents/NMR_git/simulations" #where to output results
+gendir <- getwd() 
 seedval <- 120 # seed value
 N.sim <-20
 # items to catch within loop ###################
@@ -46,6 +54,10 @@ for (true_consistency in consistency_options) {
                 if (true_arms=="multiarm" & (keep_prop_txt!="all"|true_consistency!=TRUE)){
                   next
                 }
+                if (true_assumption=="NMA" & (true_consistency!=TRUE)){
+                  next
+                }
+                
 
                 keepls <- c(ls(), "N.arms","keepls", paste("keep_studies", keep_prop_txt,true_arms, sep="_"))
                 loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, ifelse(true_consistency == FALSE, "UMIE", "consistency"),
@@ -69,7 +81,19 @@ for (true_consistency in consistency_options) {
                 
                 if (outcome == "continuous") {
                   tryCatch({
-                    source("NMR_simulated_ex_cont_generic.R")
+                    loopdir<-ifelse(exists("loopdir")==FALSE,getwd(),loopdir)
+                    source("simulate_data/sim_cont_all.R")
+                    gc()
+                    saveRDS(refdat, file = paste(loopdir,"/refdat_continuous.rds",sep=""), compress="xz")
+                    saveRDS(bind_rows(data2, .id = "sim"), file = paste(loopdir,"/data2_continuous.rds",sep=""), compress="xz")
+                    gc()
+                    source("run_models/Run_JAGS_Models_Cont_all.R")#WARNING HARDCODING
+                    gc()
+                    source("run_models/Run_Frequentist_Models_Cont2.R") #WARNING HARDCODING
+                    gc()
+                    source("run_models/Output_Models.R") #WARNING HARDCODING
+                    saveRDS(all_res, file = paste(loopdir,"/res_continuous.rds",sep=""), compress="xz")
+                    gc()
                     status_list["success"]<-TRUE
                     
                   }, error = function(e) 
@@ -87,8 +111,20 @@ for (true_consistency in consistency_options) {
                                         event_rate=="frequent"~1-0.03)
                         tryCatch({
                           # ifelse(rbinom(n=1,size=1,prob=0.5),error,TRUE)
-                        source("NMR_simulated_ex_bin_generic.R")
-                        status_list["success"]<-TRUE
+                          loopdir<-ifelse(exists("loopdir")==FALSE,getwd(),loopdir)
+                          source("simulate_data/sim_bin_all.R")#create
+                          gc()
+                          saveRDS(refdat, file = paste(loopdir,"/refdat_binary.rds",sep=""), compress="xz")
+                          saveRDS(bind_rows(data2, .id = "sim"), file = paste(loopdir,"/data2_binary.rds",sep=""), compress="xz")
+                          gc()
+                          source("run_models/Run_JAGS_Models_Bin_all.R")#update
+                          gc()
+                          source("run_models/Run_Frequentist_Models_Bin2.R")# update
+                          gc()
+                          source("run_models/Output_Models.R")
+                          saveRDS(all_res, file = paste(loopdir,"/res_binary.rds",sep=""), compress="xz")
+                          gc()
+                          status_list["success"]<-TRUE
                         
                         }, error = function(e)
                           print("error in sim"),
@@ -98,10 +134,10 @@ for (true_consistency in consistency_options) {
                 
     
                     
-            if(is_cluster_active()==TRUE) {
-              stopCluster(cl)
-            }
-            
+            # if(is_cluster_active()==TRUE) {
+            #   stopCluster(cl)
+            # }
+                on.exit(stopCluster(cl))
             assign(paste("keep_studies", keep_prop_txt, true_arms, sep="_"), keep_studies)
             loopnum<-loopnum+1
             status_list[["loopnum"]]<-loopnum
@@ -110,8 +146,9 @@ for (true_consistency in consistency_options) {
             print(loopnum)
             print(loopdir)
             print(Sys.time() - starttime_loop)
+            print(utils::object.size(ls()))
             rm(list = ls()[!ls() %in% keepls])
-            
+            gc()
                   }
               } # end event rate
             
