@@ -37,64 +37,76 @@ if(exists("N.arms")) {
 rm(data1,data2)# just to ensure we only have 1 version of the final data
 data2 <-NULL # retain results. this overwrites the other data2 results for compatibility with existing syntax
 # bkup_armmulti_data2<-NULL # are they cutting the same arms for each study?
-for(nsim in 1:N.sim){
-  temp_armmulti_data2<-armmulti_data2[[nsim]]%>%left_join(N.arms, by=c("study", "treat"="arms"))%>%
-    group_by(study, Ival_gen)%>%
-    # filter(Ival_gen==0& keep_arms==0)# potential problem
-    mutate(n_arms_temp=ifelse(Ival_gen==0,1,n_arms)#,
-           # keep_arms=ifelse(row_number() == )
-           # keep_arms=case_when(Ival_gen==0~1,
-           #                     Ival_gen==1~ifelse(row_number()%in% sample(x = n(), size=unique(n_arms_temp)-1),1,0))
-           )%>%
-    ungroup()%>%
-    filter(keep_arms==1)%>%
-    select(-c(n_arms_temp, treat.ref, n_arms, keep_arms))%>%
-    mutate(studyname=paste("gen_multiarm", study, sep="_"))%>%
-    group_by(study)%>%
-    mutate(Ival_std=ifelse(treat==min(treat),0,1))%>%# we have to redefine the trt order Ival
+# Precompute expected combinations once
+expected <- as.data.frame(combn(x = LETTERS[1:NT], m = 2)) %>%
+  tidyr::pivot_longer(cols = everything()) %>%
+  group_by(name) %>%
+  summarise(comp = paste(value, collapse = " "), .groups = "drop") %>%
+  mutate(countn = 3)
+
+# Function to process one simulation
+process_sim <- function(nsim) {
+  temp_armmulti_data2 <- armmulti_data2[[nsim]] %>%
+    left_join(N.arms, by = c("study", "treat" = "arms")) %>%
+    group_by(study, Ival_gen) %>%
+    mutate(n_arms_temp = ifelse(Ival_gen == 0, 1, n_arms)) %>%
+    ungroup() %>%
+    filter(keep_arms == 1) %>%
+    select(-c(n_arms_temp, treat.ref, n_arms, keep_arms)) %>%
+    mutate(studyname = paste("gen_multiarm", study, sep = "_")) %>%
+    group_by(study) %>%
+    mutate(Ival_std = ifelse(treat == min(treat), 0, 1)) %>%
     ungroup()
   
-  # just to id unique pairs
-  temp_multiarm<-pairwise(treat=treatment,n = n,mean = yi,sd=sd, studlab=study,
-                          data=temp_armmulti_data2,
-                          sm="MD")
+  temp_multiarm <- pairwise(
+    treat = treatment,
+    n = n,
+    mean = yi,
+    sd = sd,
+    studlab = study,
+    data = temp_armmulti_data2,
+    sm = "MD"
+  )
   
-  expected<-as.data.frame(combn(x=LETTERS[1:NT],m=2))%>%
-    tidyr::pivot_longer(cols=everything())%>%
-    group_by(name)%>%
-    summarise(comp=paste(value, collapse=" "))%>%
-    ungroup()%>%
-    mutate(countn=3)
-  
-  is_missing<-temp_multiarm%>%
-    mutate(comp=paste(treat1,treat2))%>%
-    count(comp)%>%
-    right_join(expected, by=c("comp"))%>%
-    mutate(missing=countn-ifelse(is.na(n)==TRUE,0,n))%>%
-    filter(missing>0)%>%
+  is_missing <- temp_multiarm %>%
+    mutate(comp = paste(treat1, treat2)) %>%
+    count(comp) %>%
+    right_join(expected, by = "comp") %>%
+    mutate(missing = countn - ifelse(is.na(n), 0, n)) %>%
+    filter(missing > 0) %>%
     select(comp, missing)
-  # checks 
-  # bkup_armmulti_data2[[nsim]]<-temp_armmulti_data2
-  # end checks
   
-  data2[[nsim]]<-arm2_data2[[nsim]]%>%
-    group_by(study)%>%
-    summarise(comp=paste(treatment, collapse=" "))%>%
-    ungroup()%>%
-    right_join(is_missing, by=c("comp"))%>%
-    group_by(comp)%>%
-    filter(row_number()<=missing)%>%
-    ungroup()%>%
-    select(study)%>%
-    left_join(arm2_data2[[nsim]], by=c("study"))%>%
-    mutate(studyname=paste("gen_twoarm", study, sep="_"),
-           Ival_gen=Ival_std)%>%
-    bind_rows(temp_armmulti_data2)%>%
-    mutate(study=as.numeric(as.factor(studyname)))
+  arm2_sub <- arm2_data2[[nsim]] %>%
+    group_by(study) %>%
+    summarise(comp = paste(treatment, collapse = " "), .groups = "drop") %>%
+    right_join(is_missing, by = "comp") %>%
+    group_by(comp) %>%
+    filter(row_number() <= missing) %>%
+    ungroup() %>%
+    select(study)
   
-  rm(temp_multiarm,is_missing, expected)
+  data2 <- arm2_data2[[nsim]] %>%
+    left_join(arm2_sub, by = "study") %>%
+    filter(!is.na(study)) %>%
+    mutate(
+      studyname = paste("gen_twoarm", study, sep = "_"),
+      Ival_gen = Ival_std
+    ) %>%
+    bind_rows(temp_armmulti_data2) %>%
+    mutate(study = as.numeric(as.factor(studyname)))
+  
+  return(data2)
 }
 
+# Apply to all simulations
+# starttime<-Sys.time()
+cl <- makeCluster(parallel::detectCores()/2)
+clusterExport(cl, "process_sim") 
+clusterEvalQ(cl, {library(netmeta)})
+clusterEvalQ(cl, {library(dplyr)})
+clusterExport(cl,c("armmulti_data2", "N.arms", "expected","arm2_data2"))
+data2 <- parLapply(cl,1:N.sim, process_sim)
+stopCluster(cl)
 # netgraph(netmeta(pairwise(treat=treatment,n = n,mean = yi,sd=sd, studlab=study,
 #                          data=data2[[1]],
 #                          sm="MD")),

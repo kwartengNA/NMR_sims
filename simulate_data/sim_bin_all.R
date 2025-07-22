@@ -71,12 +71,19 @@ if(exists("keep_studies")==FALSE){
 }
 
 if(is.null(keep_studies)){
-  alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
-  allmultiarm<-data2[[1]]%>%count(study)%>%filter(n>2)
-  keep_studies<-sample(alltwoarm_studyids$study,#all 2 arm study numbers
-                       floor(keep_prop*length(unique(data2[[1]]$study)))-nrow(allmultiarm), #number of 2-arm studies to keep
-                       replace = FALSE)
-  keep_studies<-c(keep_studies,allmultiarm$study)
+  temp_data2<-NULL
+  # attempts<-0
+  while(sum(temp_data2$treatment=="A")<=1){
+    alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
+    allmultiarm<-data2[[1]]%>%count(study)%>%filter(n>2)
+    keep_studies<-sample(alltwoarm_studyids$study,#all 2 arm study numbers
+                         floor(keep_prop*length(unique(data2[[1]]$study)))-nrow(allmultiarm), #number of 2-arm studies to keep
+                         replace = FALSE)
+    keep_studies<-c(keep_studies,allmultiarm$study)
+    temp_data2<-data2[[i]]%>%filter(study%in%c(keep_studies))# check which treats remain
+    # attempts<-attempts+1
+  }
+  
 } # otherwise use the existing keep studies
 
 for(i in 1:N.sim){
