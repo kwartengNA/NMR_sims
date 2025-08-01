@@ -260,7 +260,7 @@ run_common_UMIE<-function(data_filter){ # each individual dataset
 # clusterExport(cl,"NT")
 # num_cores <- floor(detectCores()/2)
 cl <- makeCluster(num_cores)
-clusterExport(cl,c("N.sim","data2","es_OR","beta_x","refdat"))
+clusterExport(cl,c("N.sim","data2","es_lOR","beta_x","refdat"))
 # clusterExport(cl,"N.sim")
 # clusterExport(cl, "data2")
 # clusterExport(cl, "es_lOR")
