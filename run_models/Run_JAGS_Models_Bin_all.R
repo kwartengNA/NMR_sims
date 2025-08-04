@@ -1,19 +1,16 @@
 # Bayesian Binary outcome
-#hardwd<-"C:/Users/kwarteng/Documents/NMR_git"
-hardwd<-loopdir
 
 # function to check clusters ########
-# Check if all nodes are responsive
-is_cluster_active <- function(){tryCatch({
-  response <- parLapply(cl, 1:length(cl), function(x) TRUE)
-  all(unlist(response))  # Check if all nodes responded
-}, error = function(e) FALSE)  # If an error occurs, assume inactive)
-  }
+# Check if all nodes are responsive (defined in run_sims. here in case it needs to run standalone)
+# is_cluster_active <- function(){tryCatch({
+#   response <- parLapply(cl, 1:length(cl), function(x) TRUE)
+#   all(unlist(response))  # Check if all nodes responded
+# }, error = function(e) FALSE)  # If an error occurs, assume inactive)
+#   }
 
 # function to start clusters ################
 startjagscl<-function(){
   if(exists("cl")==FALSE|is_cluster_active()==FALSE){
-  # num_cores <- 5#floor(detectCores()/3)
   cl <- makeCluster(num_cores, outfile="temp.txt")
   clusterExport(cl,c("N.sim","data2","es_lOR","beta_x","refdat",#"all_JAGS_lists", 
                      "model_AD_NMA_BIN_RE",
@@ -21,7 +18,7 @@ startjagscl<-function(){
                      "model_AD_NMR_BIN_RE_independent","model_AD_NMR_BIN_RE_independent_UME",
                      "build_data_filter",
                      "n.iter","n.burnin","seedval", "jagsseedval"))
-  clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )}) 
+  clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )}) # needed for cluster
   clusterEvalQ(cl, {library(dplyr)})
   clusterEvalQ(cl, {library(jagsUI)})
   clusterEvalQ(cl, {set.seed(jagsseedval)})# if the JAGS models are run separately, they require the same seed in order to obtain the same results
@@ -69,7 +66,6 @@ build_data_filter <- function(simid){
                       "r"=temp_mydata_wide%>%select(starts_with("events_")),
                       "n"=temp_mydata_wide%>%select(starts_with("n_")),
                       ## need a column for each arm
-                      # "prec"= temp_mydata_wide%>%select(starts_with("prec_")),
                       "I_dir"= temp_mydata_wide%>%select(starts_with("Ival_std_"))
   )
   
@@ -306,7 +302,7 @@ if (!is_cluster_active()) {
 #   stopCluster(cl)
 # }
 # 
-# cl<-startjagscl()
+
 ws_snapshot<-ls()
 ## NMA #################
 clusterEvalQ(cl, {set.seed(jagsseedval)})
@@ -319,16 +315,16 @@ NMA_res_JAGS<-bind_rows(NMA_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(NMA_res_JAGS,paste(hardwd,"/NMAjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(NMA_res_JAGS, file = paste(hardwd,"/NMAjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(NMA_res_JAGS,paste(loopdir,"/NMAjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(NMA_res_JAGS, file = paste(loopdir,"/NMAjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
-# stopCluster(cl)
+
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
+
 ## IND ###############
 clusterEvalQ(cl, {set.seed(jagsseedval)})
 clusterExport(cl, "run_ind_JAGS")
@@ -340,15 +336,15 @@ ind_res_JAGS<-bind_rows(ind_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(ind_res_JAGS,paste(hardwd,"/Ijagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(ind_res_JAGS, file = paste(hardwd,"/Ijagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
-# stopCluster(cl)
+# write.csv(ind_res_JAGS,paste(loopdir,"/Ijagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(ind_res_JAGS, file = paste(loopdir,"/Ijagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
+
 
 ## IND UMIE ###############
 
@@ -362,16 +358,16 @@ ind_UMIE_res_JAGS<-bind_rows(ind_UMIE_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(ind_UMIE_res_JAGS,paste(hardwd,"/IUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(ind_UMIE_res_JAGS, file = paste(hardwd,"/IUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(ind_UMIE_res_JAGS,paste(loopdir,"/IUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(ind_UMIE_res_JAGS, file = paste(loopdir,"/IUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
-# stopCluster(cl)
+
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
+
 
 ## COMMON ###############
 
@@ -385,16 +381,16 @@ common_res_JAGS<-bind_rows(common_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(common_res_JAGS,paste(hardwd,"/Cjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(common_res_JAGS, file = paste(hardwd,"/Cjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(common_res_JAGS,paste(loopdir,"/Cjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(common_res_JAGS, file = paste(loopdir,"/Cjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
-# stopCluster(cl)
+
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
+
 ## COMMON UMIE ###############
 clusterEvalQ(cl, {set.seed(jagsseedval)})
 clusterExport(cl, "run_common_UMIE_JAGS")
@@ -407,15 +403,15 @@ common_UMIE_res_JAGS<-bind_rows(common_UMIE_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(common_UMIE_res_JAGS,paste(hardwd,"/CUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(common_UMIE_res_JAGS, file = paste(hardwd,"/CUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(common_UMIE_res_JAGS,paste(loopdir,"/CUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(common_UMIE_res_JAGS, file = paste(loopdir,"/CUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
 stopCluster(cl)
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 # combine res ###################################
 
-outputdir<-paste(hardwd,"/",sep="")
+outputdir<-paste(loopdir,"/",sep="")
 myfiles<-list.files(outputdir,full.names = TRUE)
 my_jagscsv<-myfiles[grepl("\\.rds", myfiles)==TRUE]
 my_jagscsv<-my_jagscsv[grepl("jagsres", my_jagscsv)==TRUE]

@@ -1,4 +1,3 @@
-#WARNING HARDCODING
 # Define functions for models/output using netmetareg ##########
 
 ## NMA ##########################
@@ -262,19 +261,12 @@ run_common_UMIE<-function(data_filter){ # each individual dataset
 # run models in clusters #########################
 
 
-# clusterExport(cl,"X1")
-# clusterExport(cl,"NT")
 cl <- makeCluster(num_cores)
 clusterExport(cl,c("N.sim","data2","es_MD","beta_x","refdat"))
-# clusterExport(cl,"N.sim")
-# clusterExport(cl, "data2")
-# clusterExport(cl, "es_lOR")
-# clusterExport(cl, "beta_x")
-# clusterExport(cl, "refdat")
-clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )}) 
+clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )})# needed for cluster
 clusterEvalQ(cl, {library(netmeta)})
 clusterEvalQ(cl, {library(dplyr)})
-clusterEvalQ(cl, {source("netmetareg.R")})# #WARNING HARDCODING
+clusterEvalQ(cl, {source("netmetareg.R")})
 
 # while netmetareg is internal
 clusterEvalQ(cl, {

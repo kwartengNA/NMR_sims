@@ -1,15 +1,12 @@
-#WARNING HARDCODING
 # Bayesian Continuous Outcome
-#hardwd<-"C:/Users/kwarteng/Documents/NMR_git"
-hardwd<-loopdir
 
 # function to check clusters ########
 # Check if all nodes are responsive
-is_cluster_active <- function(){tryCatch({
-  response <- parLapply(cl, 1:length(cl), function(x) TRUE)
-  all(unlist(response))  # Check if all nodes responded
-}, error = function(e) FALSE)  # If an error occurs, assume inactive)
-  }
+# is_cluster_active <- function(){tryCatch({
+#   response <- parLapply(cl, 1:length(cl), function(x) TRUE)
+#   all(unlist(response))  # Check if all nodes responded
+# }, error = function(e) FALSE)  # If an error occurs, assume inactive)
+#   }
 
 # function to start clusters ################
 startjagscl<-function(){
@@ -21,9 +18,9 @@ startjagscl<-function(){
                      "model_AD_NMR_CONT_RE_independent","model_AD_NMR_CONT_RE_independent_UME",
                      "build_data_filter",
                      "n.iter","n.burnin","seedval", "jagsseedval"))
-  clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )}) 
+  clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )}) # needed for cluster
   clusterEvalQ(cl, {library(dplyr)})
-  clusterEvalQ(cl, {library(jagsUI)})#, lib.loc = "/h/kwarteng/mypkgs"
+  clusterEvalQ(cl, {library(jagsUI)})
   clusterEvalQ(cl, {set.seed(jagsseedval)})# if the JAGS models are run separately, they require the same seed in order to obtain the same results
   }
   return(cl)
@@ -303,33 +300,29 @@ if (!is_cluster_active()) {
   cl <- startjagscl()
 }
 
-# if(is_cluster_active()==TRUE) {
-#   stopCluster(cl)
-# }
-# 
-# cl<-startjagscl()
+
 ws_snapshot<-ls()
 ## NMA #################
 clusterEvalQ(cl, {set.seed(jagsseedval)})
 clusterExport(cl, "run_NMA_JAGS")
 NMA_res_JAGS=parLapply(cl,1:N.sim, function(x) run_NMA_JAGS(simid=x))
-# NMA_res_JAGS=parLapply(cl,1:N.sim, function(x) run_NMA_JAGS(all_JAGS_lists[[x]]))
+
 NMA_res_JAGS<-bind_rows(NMA_res_JAGS, .id = "simulation")%>%
    rename(es_MD=Estimate)%>%
    mutate(jagsseedval=jagsseedval,bias=TE_NMR -es_MD,
             coverage_TE=ifelse(es_MD>=lci_NMR &es_MD<=uci_NMR,TRUE,FALSE),
             mse=(bias^2)+(seTE_NMR^2),
           length=uci_NMR-lci_NMR )
-# write.csv(NMA_res_JAGS,paste(hardwd,"/NMAjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(NMA_res_JAGS, file = paste(hardwd,"/NMAjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(NMA_res_JAGS,paste(loopdir,"/NMAjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(NMA_res_JAGS, file = paste(loopdir,"/NMAjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# stopCluster(cl)
+
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
-# cl<-startjagscl()
+
 ## IND ###############
 clusterEvalQ(cl, {set.seed(jagsseedval)})
 clusterExport(cl, "run_ind_JAGS")
@@ -340,8 +333,8 @@ ind_res_JAGS<-bind_rows(ind_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_MD>=lci_NMR &es_MD<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(ind_res_JAGS,paste(hardwd,"/Ijagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(ind_res_JAGS, file = paste(hardwd,"/Ijagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(ind_res_JAGS,paste(loopdir,"/Ijagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(ind_res_JAGS, file = paste(loopdir,"/Ijagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
 stopCluster(cl)
 
@@ -350,7 +343,6 @@ rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
 
 ## IND UMIE ###############
 
@@ -364,15 +356,14 @@ ind_UMIE_res_JAGS<-bind_rows(ind_UMIE_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_MD>=lci_NMR &es_MD<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(ind_UMIE_res_JAGS,paste(hardwd,"/IUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(ind_UMIE_res_JAGS, file = paste(hardwd,"/IUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
-# stopCluster(cl)
+# write.csv(ind_UMIE_res_JAGS,paste(loopdir,"/IUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(ind_UMIE_res_JAGS, file = paste(loopdir,"/IUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
 
 ## COMMON ###############
 
@@ -385,15 +376,14 @@ common_res_JAGS<-bind_rows(common_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_MD>=lci_NMR &es_MD<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(common_res_JAGS,paste(hardwd,"/Cjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(common_res_JAGS, file = paste(hardwd,"/Cjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
-# stopCluster(cl)
+# write.csv(common_res_JAGS,paste(loopdir,"/Cjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(common_res_JAGS, file = paste(loopdir,"/Cjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 if (!is_cluster_active()) {
   cl <- startjagscl()
 }
-# cl<-startjagscl()
+
 ## COMMON UMIE ###############
 clusterEvalQ(cl, {set.seed(jagsseedval)})
 clusterExport(cl, "run_common_UMIE_JAGS")
@@ -405,8 +395,8 @@ common_UMIE_res_JAGS<-bind_rows(common_UMIE_res_JAGS, .id = "simulation")%>%
          coverage_TE=ifelse(es_MD>=lci_NMR &es_MD<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
          length=uci_NMR-lci_NMR )
-# write.csv(common_UMIE_res_JAGS,paste(hardwd,"/CUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
-saveRDS(common_UMIE_res_JAGS, file = paste(hardwd,"/CUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
+# write.csv(common_UMIE_res_JAGS,paste(loopdir,"/CUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
+saveRDS(common_UMIE_res_JAGS, file = paste(loopdir,"/CUjagsres_continuous_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
 stopCluster(cl)
 gc()
@@ -414,7 +404,7 @@ rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
 
 
 # combine res ###################################
-outputdir<-paste(hardwd,"/",sep="")
+outputdir<-paste(loopdir,"/",sep="")
 myfiles<-list.files(outputdir,full.names = TRUE)
 my_jagscsv<-myfiles[grepl("\\.rds", myfiles)==TRUE]
 my_jagscsv<-my_jagscsv[grepl("jagsres", my_jagscsv)==TRUE]

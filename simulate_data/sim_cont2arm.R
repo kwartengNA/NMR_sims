@@ -7,7 +7,7 @@ library(dplyr)
 dlong <- function(data){
   # prepare the data set for the long-format
   dat1 <- data %>%
-    dplyr::select(studlab, t1, n1, yi.t1,xcov, sd=sd.t2) %>%
+    dplyr::select(studlab, t1, n1, yi.t1,xcov, sd=sd.t1) %>%
     mutate(treat_num=t1,
            treatment=LETTERS[t1],
            Ival_std=0)%>%
@@ -82,8 +82,11 @@ for (i in 1:N.sim){
                                         test1[2])
     data1[[i]]$yi.t1[j]=data1[[i]]$st.sp.MD.t1[j]+0*data1[[i]]$xcov[j]
     data1[[i]]$yi.t2[j]=data1[[i]]$st.sp.MD.t2[j]+beta_x[data1[[i]]$t1[j],data1[[i]]$t2[j]]*data1[[i]]$xcov[j]
-    data1[[i]]$sd.t1[j]=abs(rnorm(n=1,mean=1,sd=.1))
-    data1[[i]]$sd.t2[j]=abs(rnorm(n=1,mean=1,sd=.1))
+    data1[[i]]$sd.t1[j]=abs(rnorm(n=1,mean=1,sd=1))
+    data1[[i]]$sd.t2[j]=abs(rnorm(n=1,mean=1,sd=1))
+    
+    # data1[[i]]$sd.t1[j]=abs(rnorm(n=1,mean=1,sd=.1))
+    # data1[[i]]$sd.t2[j]=abs(rnorm(n=1,mean=1,sd=.1))
     
   }}
 

@@ -2,9 +2,6 @@
 # Modified NAK to add interactions
 # link: https://github.com/TEvrenoglou/PL-NMA/blob/main/Scenario%201-16/Scenario%201.R
 
-
-library(dplyr)
-
 dlong <- function(data){
   # prepare the data set for the long-format
   dat1 <- data %>%

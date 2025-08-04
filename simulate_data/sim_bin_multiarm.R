@@ -2,8 +2,6 @@
 # Modified NAK to add interactions
 # link: https://github.com/TEvrenoglou/PL-NMA/blob/main/Scenario%2017-32/Scenario%2020.R
 
-library(dplyr)
-library(netmeta)
 
 data1=list()
 data2=list()
