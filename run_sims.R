@@ -30,9 +30,7 @@ is_cluster_active <- function(){tryCatch({
   all(unlist(response))  # Check if all nodes responded
 }, error = function(e) FALSE)  # If an error occurs, assume inactive)
 }
-gendir <- getwd() 
-seedval <- 120 # seed value
-N.sim <-1
+
 # items to catch within loop ###################
 loopnum<-0
 status_frame<-as.data.frame(NULL)
