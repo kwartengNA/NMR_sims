@@ -3,8 +3,8 @@
 options(save.workspace = "no")
 num_cores<-2
 gendir <- getwd() 
-seedval <- 120 # seed value
-N.sim <-1
+seedval <- 175 # seed value
+N.sim <-100
 .libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )
 
 # scenario definitions  ############################
@@ -30,9 +30,7 @@ is_cluster_active <- function(){tryCatch({
   all(unlist(response))  # Check if all nodes responded
 }, error = function(e) FALSE)  # If an error occurs, assume inactive)
 }
-gendir <- getwd() 
-seedval <- 120 # seed value
-N.sim <-1
+
 # items to catch within loop ###################
 loopnum<-0
 status_frame<-as.data.frame(NULL)
@@ -63,8 +61,8 @@ for (true_consistency in consistency_options) {
 
 
                 keepls <- c(ls(), "N.arms","keepls", paste("keep_studies", keep_prop_txt,true_arms, sep="_"))
-                loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, ifelse(true_consistency == FALSE, "UMIE", "consistency"),
-                                 true_assumption,true_arms, paste("tau",tau_txt,sep="_"), paste("connect",keep_prop_txt,sep="_"),
+                loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, true_arms,ifelse(true_consistency == FALSE, "UMIE", "consistency"),
+                                 true_assumption, paste("tau",tau_txt,sep="_"), paste("connect",keep_prop_txt,sep="_"),
                                  paste(interaction_direction, "beta", sep="_"), paste(ifelse(outcome=="continuous", "NA", event_rate), "events", sep="_"), sep="/")
                 dir.create(loopdir,
                            recursive = TRUE)
@@ -168,8 +166,8 @@ for (true_consistency in consistency_options) {
                 
                 
                 keepls <- c(ls(), "N.arms","keepls", paste("keep_studies", keep_prop_txt,true_arms, sep="_"))
-                loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, ifelse(true_consistency == FALSE, "UMIE", "consistency"),
-                                 true_assumption,true_arms, paste("tau",tau_txt,sep="_"), paste("connect",keep_prop_txt,sep="_"), 
+                loopdir <- paste(gendir, paste("/seed_", seedval,sep=""),outcome, true_arms,ifelse(true_consistency == FALSE, "UMIE", "consistency"),
+                                 true_assumption, paste("tau",tau_txt,sep="_"), paste("connect",keep_prop_txt,sep="_"), 
                                  paste(interaction_direction, "beta", sep="_"), paste(ifelse(outcome=="continuous", "NA", event_rate), "events", sep="_"), sep="/")
                 status_list<-c(true_consistency=true_consistency ,true_assumption=true_assumption ,true_arms=true_arms ,tau_txt=tau_txt ,
                                keep_prop_txt=keep_prop_txt ,outcome=outcome, interaction_direction=interaction_direction,  event_rate=ifelse(outcome=="continuous", NA, event_rate))
