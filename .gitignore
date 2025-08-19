@@ -10,3 +10,4 @@ old/
 *.lnk
 man/
 *.Rproj
+create_sims_gs.R
