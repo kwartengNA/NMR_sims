@@ -1,17 +1,12 @@
 # Define functions for models/output using netmetareg ##########
 
-# data2_pairwise<-lapply(data2, function(x) pairwise(treat=treatment,n = n,event = events,studlab=study,data=x,sm="OR"))
-# all_netmeta<-lapply(data2_pairwise, function(x) netmeta(x, method.tau = "REML", reference.group = "A"))
-# rm(data2_pairwise)
-# gc()
-
 ## NMA ##########################
 run_NMA<-function(data_filter){ # each individual dataset
   
-  tmp_pairwise<-data_filter
+  mynet<-data_filter
   
   tryCatch({
-    mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
+    # mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
     temp_nmr<-netmetareg(mynet, covar=NULL, consistency = TRUE, assumption = "independent")
     temp_summary<-summary.netmetareg_old(object = temp_nmr)
     
@@ -51,10 +46,10 @@ run_NMA<-function(data_filter){ # each individual dataset
 ## ind ##########################
 run_ind<-function(data_filter){ # each individual dataset
   
-  tmp_pairwise<-data_filter
+  mynet<-data_filter
   
   tryCatch({
-    mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
+    #mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
     temp_nmr<-netmetareg(mynet, covar=xcov, consistency = TRUE, assumption = "independent")
     temp_summary<-summary.netmetareg_old(object = temp_nmr)
     
@@ -93,10 +88,10 @@ run_ind<-function(data_filter){ # each individual dataset
 ## ind umie ##########################
 run_ind_UMIE<-function(data_filter){ # each individual dataset
   
-  tmp_pairwise<-data_filter
+  mynet<-data_filter
   
   tryCatch({
-    mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
+    #mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
     temp_nmr<-netmetareg(mynet, covar=xcov, consistency = FALSE, assumption = "independent")
     temp_summary<-summary.netmetareg_old(object = temp_nmr)
     
@@ -134,10 +129,10 @@ run_ind_UMIE<-function(data_filter){ # each individual dataset
 ## common ##########################
 run_common<-function(data_filter){ # each individual dataset
   
-  tmp_pairwise<-data_filter
+  mynet<-data_filter
   
   tryCatch({
-    mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
+    #mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
     temp_nmr<-netmetareg(mynet, covar=xcov, consistency = TRUE, assumption = "common")
     temp_summary<-summary.netmetareg_old(object = temp_nmr)
     
@@ -176,10 +171,10 @@ run_common<-function(data_filter){ # each individual dataset
 ## ind umie min ##########################
 run_ind_UMIEmax<-function(data_filter){ # each individual dataset
   
-  tmp_pairwise<-data_filter
+  mynet<-data_filter
   
   tryCatch({
-    mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
+    #mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
     temp_nmr<-netmetareg(mynet, covar=xcov, consistency = FALSE, assumption = "independent", max_interactions=TRUE)
     temp_summary<-summary.netmetareg_old(object = temp_nmr)
     
@@ -219,10 +214,10 @@ run_ind_UMIEmax<-function(data_filter){ # each individual dataset
 ## common umie ##########################
 run_common_UMIE<-function(data_filter){ # each individual dataset
   
-  tmp_pairwise<-data_filter
+  mynet<-data_filter
   
   tryCatch({
-    mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
+    #mynet<-netmeta(tmp_pairwise, method.tau = "REML", reference.group = "A")
     temp_nmr<-netmetareg(mynet, covar=xcov, consistency = FALSE, assumption = "common")
     temp_summary<-summary.netmetareg_old(object = temp_nmr)
     
@@ -265,9 +260,7 @@ run_common_UMIE<-function(data_filter){ # each individual dataset
 # clusterExport(cl,"NT")
 # num_cores <- floor(detectCores()/2)
 cl <- makeCluster(num_cores)
-clusterExport(cl,c("N.sim",#"data2",
-                   "data2_pairwise",
-                   # "all_netmeta",
+clusterExport(cl,c("N.sim",
                    "es_lOR","beta_x","refdat"))
 clusterEvalQ(cl, {.libPaths( c( "/h/kwarteng/mypkgs" , .libPaths() ) )}) # needed for cluster
 clusterEvalQ(cl, {library(netmeta)})
@@ -299,24 +292,28 @@ clusterEvalQ(cl, {
 clusterExport(cl, "data2")
 data2_pairwise<-parLapply(cl,data2, function(x) pairwise(treat=treatment,n = n,event = events,studlab=study,data=x,sm="OR"))
 
+clusterExport(cl,c("data2_pairwise"))
+data2_netmeta<-parLapply(cl,data2_pairwise, function(x)netmeta(x, method.tau = "REML", reference.group = "A"))
+
+clusterExport(cl,c("data2_netmeta"))
 clusterExport(cl, "run_NMA")
-NMA_res=parLapply(cl,1:N.sim, function(x) run_NMA(data2_pairwise[[x]]))
+NMA_res=parLapply(cl,1:N.sim, function(x) run_NMA(data2_netmeta[[x]]))
 
 clusterExport(cl, "run_ind")
-ind_res=parLapply(cl,1:N.sim, function(x) run_ind(data2_pairwise[[x]]))
+ind_res=parLapply(cl,1:N.sim, function(x) run_ind(data2_netmeta[[x]]))
 
 clusterExport(cl, "run_ind_UMIE")
-ind_UMIE_res=parLapply(cl,1:N.sim, function(x) run_ind_UMIE(data2_pairwise[[x]]))
+ind_UMIE_res=parLapply(cl,1:N.sim, function(x) run_ind_UMIE(data2_netmeta[[x]]))
 
 clusterExport(cl, "run_common")
-common_res=parLapply(cl,1:N.sim, function(x) run_common(data2_pairwise[[x]]))
+common_res=parLapply(cl,1:N.sim, function(x) run_common(data2_netmeta[[x]]))
 
 clusterExport(cl, "run_common_UMIE")
-common_UMIE_res=parLapply(cl,1:N.sim, function(x) run_common_UMIE(data2_pairwise[[x]]))
+common_UMIE_res=parLapply(cl,1:N.sim, function(x) run_common_UMIE(data2_netmeta[[x]]))
 
 clusterExport(cl, "run_ind_UMIEmax")
-ind_UMIE_resmin=parLapply(cl,1:N.sim, function(x) run_ind_UMIEmax(data2_pairwise[[x]]))
-rm(all_netmeta)
+ind_UMIE_resmin=parLapply(cl,1:N.sim, function(x) run_ind_UMIEmax(data2_netmeta[[x]]))
+
 # extract bias estimates ################
 ## NMA #################
 NMA_res<-bind_rows(NMA_res, .id = "simulation")%>%
