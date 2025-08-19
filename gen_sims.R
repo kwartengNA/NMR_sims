@@ -3,8 +3,8 @@
 options(save.workspace = "no")
 num_cores <- 2
 gendir <- getwd()
-seedval <- 175
-N.sim <- 5
+seedval <- 120
+N.sim <- 1000
 
 # Custom library path
 .libPaths(c("/h/kwarteng/mypkgs", .libPaths()))
@@ -16,7 +16,7 @@ arm_options <- c("mixarm", "multiarm", "twoarm")
 tau_options <- c("none", "moderate", "high") 
 density_options <- c("low", "moderate", "all")
 event_rate_options <- c("moderate") 
-outcome_options <- c("binary", "continuous") 
+outcome_options <- c("continuous") 
 interaction_direction_options <- c("positive")
 
 # Libraries and Functions ############################
@@ -216,28 +216,3 @@ expected %>%
                      true_consistency = as.logical(true_consistency))) %>%
   count(true_arms, outcome, expected, attempted, success)
 
-################
-for (true_consistency in consistency_options) {
-  for (true_assumption in assumption_options) {
-    for (true_arms in arm_options) {
-      for (tau_txt in tau_options) {
-        for (keep_prop_txt in density_options) {
-          for (interaction_direction in interaction_direction_options) {
-            for (event_rate in event_rate_options) {
-              for (outcome in outcome_options) {
-                
-                if (should_skip(outcome, event_rate, interaction_direction, true_arms, keep_prop_txt, true_consistency, true_assumption)==TRUE){ next}
-                keepls <- c(ls(), 
-                            "N.arms","keepls", paste("keep_studies", keep_prop_txt,true_arms, sep="_"))
-                
-                loopdir <- build_loopdir(outcome, true_arms, true_consistency, true_assumption, tau_txt, keep_prop_txt, interaction_direction, event_rate)
-                
-                
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
