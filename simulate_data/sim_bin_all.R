@@ -1,165 +1,233 @@
-## ---- datagen----------------------------------------------------------------------------
-seedval<-ifelse(exists("seedval")==FALSE,sample(1:1000,size=1),seedval)
-jagsseedval<-ifelse(exists("jagsseedval")==FALSE,sample(1:1000,size=1),jagsseedval)
+# Data Generation Setup  ############################
+
+# Check if input values are assigned (i.e. from loop), or assign defaults   ############################
+seedval      <- if (!exists("seedval")) sample(1:1000, 1) else seedval
+jagsseedval  <- if (!exists("jagsseedval")) sample(1:1000, 1) else jagsseedval
 set.seed(seedval)
-N.sim=ifelse(exists("N.sim")==FALSE,2,N.sim) # number of simulations
-NT= 7 #### number of treatments in the network
-NS= 3  #### number of studies per comparison (NS*NT for multi-arm)
-keep_prop<-ifelse(exists("keep_prop")==FALSE,1,keep_prop)# proportion of studies to keep
-tau=ifelse(exists("tau")==FALSE,sqrt(runif(n=1,min=0,max=1)),tau)
 
-Npmin=30 #### minimum number of patients per arm
-Npmax=60 #### maximum number of patients per arm
-es_lOR= c(0,seq(from =1/(NT-1), to = 1, by = 1/(NT-1))) #(logOR) ### logOR across studies when xcov is 0 (for each comparator treatment vs 1 normally i would choose a random value)
+# Event rate boundaries
+minr <- if (!exists("minr")) 0.3 else minr
+maxr <- if (!exists("maxr")) 0.6 else maxr
 
-es_OR=exp(es_lOR)
-minr=ifelse(exists("minr")==FALSE,0.3,minr) #control event probability min
-maxr=ifelse(exists("maxr")==FALSE,0.6,maxr) #control event probability max
+# Assumptions
+true_consistency <- if (!exists("true_consistency")) TRUE else true_consistency
+true_assumption <- if (!exists("true_assumption")) "independent" else true_assumption
+interaction_direction <- if (!exists("interaction_direction")) NA else interaction_direction
 
-# beta_x is on log scale so 2 would be a multiplicative effect on OR of 7.3. In simulation, this increases the probability of studies where events=n
-# everything above 1 is rather large
-beta_range=0.75
-# common/constant/consistent
-true_consistency=ifelse(exists("true_consistency")==FALSE,TRUE,true_consistency)
-true_assumption=ifelse(exists("true_assumption")==FALSE,"independent",true_assumption)
-interaction_direction=ifelse(exists("interaction_direction")==FALSE,NA,interaction_direction)
+# Arms
+true_arms <- if (!exists("true_arms")) "twoarm" else true_arms
 
-# common/constant/consistent
-if(true_consistency==TRUE){
-  if(true_assumption=="common"){
-    beta_x_old<-c(0,rep(runif(n=1,min=-1*beta_range,max=beta_range),NT-1))# common/constant/consistent
-  } else if(true_assumption=="independent"){
-    beta_x_old<-c(0,runif(n=NT-1,min=-1*beta_range,max=beta_range))# independent/consistent
-  } else if(true_assumption=="NMA"){
-    beta_x_old<-rep(runif(n=1,min=-1*beta_range,max=beta_range),NT)# NMA
-  }
-  if(is.null(interaction_direction)|is.na(interaction_direction)){
-    beta_x_old<-beta_x_old# unchanged
-  }else if(interaction_direction=="positive"){
-    beta_x_old<-abs(beta_x_old)
-  } else if(interaction_direction=="negative"){
-    beta_x_old<-abs(beta_x_old)*-1
+# Define other simulation parameters   ############################
+N.sim <- if (!exists("N.sim")) 2 else N.sim   # number of simulations
+keep_prop <- if (!exists("keep_prop")) 1 else keep_prop
+tau <- if (!exists("tau")) sqrt(runif(1, 0, 1)) else tau
+
+NT <- 7   # number of treatments
+NS <- 3   # number of studies per comparison (NS*NT for multi-arm)
+
+# Patient allocation
+Npmin <- 30
+Npmax <- 60
+
+# Effect sizes
+es_lOR <- c(0, seq(1/(NT-1), 1, length.out = NT-1))
+es_OR <- exp(es_lOR)
+
+# Interaction Size/assumptions
+beta_range <- 0.75
+
+# Covariate range
+maxxrange <- 5
+minxrange <- -1
+
+
+# Generate Interaction Matrix   ############################
+
+generate_beta_x <- function(NT, assumption, consistency, interaction_direction, beta_range) {
+  if (consistency) {
+    # Consistent interactions
+    if (assumption == "common") {
+      beta_x_old <- c(0, rep(runif(1, -beta_range, beta_range), NT-1))
+    } else if (assumption == "independent") {
+      beta_x_old <- c(0, runif(NT-1, -beta_range, beta_range))
+    } else if (assumption == "NMA") {
+      beta_x_old <- rep(runif(1, -beta_range, beta_range), NT)
+    }
+    
+    if (!is.na(interaction_direction)) {
+      if (interaction_direction == "positive") beta_x_old <- abs(beta_x_old)
+      if (interaction_direction == "negative") beta_x_old <- -abs(beta_x_old)
+    }
+    
+    beta_x <- outer(beta_x_old, beta_x_old, FUN = "-") * -1
+    
+  } else {
+    # UMIE interactions
+    if (assumption == "common") {
+      vals <- rep(runif(1, -beta_range, beta_range), NT^2)
+    } else if (assumption == "independent") {
+      vals <- runif(NT^2, -beta_range, beta_range)
+    } else if (assumption == "NMA") {
+      vals <- rep(0, NT^2)
+    }
+    beta_x <- matrix(vals, nrow = NT, ncol = NT)
+    beta_x[lower.tri(beta_x)] <- -beta_x[upper.tri(beta_x)]
   }
   
-  beta_x<-outer(beta_x_old,beta_x_old, FUN="-")*-1
-} else {
-  if(true_assumption=="common"){
-    beta_x<-matrix(nrow=NT,ncol=NT,rep(x=runif(n=1,min=-1*beta_range,max=beta_range),times=NT^2))# common
-  } else if(true_assumption=="independent"){
-    beta_x<-matrix(nrow=NT,ncol=NT,runif(min=-1*beta_range,max=beta_range, n=NT^2))# independent
-  } else if(true_assumption=="NMA"){
-    beta_x<-matrix(nrow=NT,ncol=NT,rep(x=0,times=NT^2))
-  }
-  beta_x[lower.tri(beta_x)]<-beta_x[upper.tri(beta_x)]*-1 # not required, but for simplicity
+  diag(beta_x) <- 0
+  beta_x
 }
-diag(beta_x)<-0
-beta_x
 
+beta_x <- generate_beta_x(NT, true_assumption, true_consistency, interaction_direction, beta_range)
 
-maxxrange<-5
-minxrange<--1
-true_arms=ifelse(exists("true_arms")==FALSE,"twoarm",true_arms)
-if(true_arms=="multiarm"){
-  source("simulate_data/sim_bin_multiarm.R")
-} else if(true_arms=="mixarm"){
-  source("simulate_data/sim_bin_mixarm.R")
-} else {
+# Generate Network  ############################
+if (true_arms == "multiarm") {
+  source("simulate_data/sim_bin_multiarm.R") # all generations have the same structure
+  dat.studies_long<-data2[[1]]%>%
+    select(study, treat, treatment)
+  
+} else if (true_arms == "twoarm") {
   source("simulate_data/sim_bin2arm.R")
-}
-if(exists("keep_studies")==FALSE){
-  keep_studies<-NULL 
-}
-
-if(is.null(keep_studies)){
-  temp_data2<-NULL
-  # attempts<-0
-  while(sum(temp_data2$treatment=="A")<=1){
-    alltwoarm_studyids<-data2[[1]]%>%count(study)%>%filter(n==2)
-    allmultiarm<-data2[[1]]%>%count(study)%>%filter(n>2)
-    keep_studies<-sample(alltwoarm_studyids$study,#all 2 arm study numbers
-                         floor(keep_prop*length(unique(data2[[1]]$study)))-nrow(allmultiarm), #number of 2-arm studies to keep
-                         replace = FALSE)
-    keep_studies<-c(keep_studies,allmultiarm$study)
-    temp_data2<-data2[[i]]%>%filter(study%in%c(keep_studies))# check which treats remain
-    # attempts<-attempts+1
-  }
+  dat.studies_long<-data2[[1]]%>% # all generations have the same structure
+    select(study, treat, treatment)
   
-} # otherwise use the existing keep studies
+} else if (true_arms == "mixarm") {
+  
+  if (!exists("dat.studies_merge")) {source("simulate_data/sim_mixarm_gs.R")} # define structure. creates dat.studies long in first mixarm/density configuration
+  
+  # Two-arm values
+  source("simulate_data/sim_bin2arm.R")
+  arm2_data2 <- data2
+  arm2_data1 <- data1
+      
+  # Multi-arm values
+  NS_bkup <- NS
+  NS <- round(ctmixarm(NT)$nmulti)
+  source("simulate_data/sim_bin_multiarm.R")
+  armmulti_data2 <- data2
+  armmulti_data1 <- data1
+  NS <- NS_bkup
+  
+  # combine values. Apply structure in next step with keep studies subset
+  data2 <- mapply(function(df1, df2) {
+    dplyr::bind_rows(
+      dplyr::mutate(df1, arms = "twoarm"),
+      dplyr::mutate(df2, arms = "multiarm"))%>%
+      group_by(study, arms) %>%
+      mutate(comparison2 = ifelse(arms == "multiarm", "multiarm", paste(unique(treat), collapse = " vs "))) %>%
+      ungroup() %>%
+      arrange(comparison2, study) %>%
+      group_by(comparison2, study) %>%
+      mutate(rank = cur_group_id()) %>%
+      ungroup() %>%
+      group_by(comparison2) %>%
+      mutate(rank = rank - min(rank) + 1) %>%
+      ungroup()
+    }, arm2_data2, armmulti_data2, SIMPLIFY = FALSE)
+  
+  }
 
-for(i in 1:N.sim){
-  data2[[i]]<-data2[[i]]%>%
-    filter(study%in%c(keep_studies))
+# Keep Studies Subset ############################
+
+if (!exists("dat.studies_merge")) dat.studies_merge <- NULL
+
+if (is.null(dat.studies_merge)) {
+  while (sum(dat.studies_merge$treat == 1) <= 1) {
+    alltwoarm_studyids <- dat.studies_long %>% count(study) %>% filter(n == 2)
+    allmultiarm <- dat.studies_long %>% count(study) %>% filter(n > 2)
+    
+    keep_studies <- sample(
+      alltwoarm_studyids$study,
+      floor(keep_prop * length(unique(dat.studies_long$study))) - nrow(allmultiarm),
+      replace = FALSE
+    )
+    keep_studies <- c(keep_studies, allmultiarm$study)
+    dat.studies_merge <- dat.studies_long %>% filter(study %in% keep_studies)
+  }
+  rm(allmultiarm, alltwoarm_studyids, keep_studies)
 }
 
+if (true_arms == "mixarm") {
+  # can't join on study id
+  for (i in 1:N.sim) {
+    data2[[i]] <- dat.studies_merge %>%
+      left_join(data2[[i]], by = c("treat","comparison2","rank")) %>%
+      arrange(study.x, treat) %>%
+      select(study = study.x, study.y, treat, comparison = comparison2,
+             n, events, xcov, treatment, Ival_std, treat.ref)
+  }
 
-
-
-## ---- refdat new -----------------------------------------------------------------------------------
-refdat_orig<-data.frame(rowname=c(paste("es_A",LETTERS[1:NT],sep=""),
-                                  # paste("beta_x_A",LETTERS[1:NT],sep=""),
-                                  "tau","seed"),
-                        graphname=c(paste("treat_name",LETTERS[1:NT],sep=""),
-                                    # paste("`",LETTERS[1:NT],":xcov`",sep=""),
-                                    "tau","seed"),
-                        graphname2=c(paste("treat_name",LETTERS[1:NT],sep=""),
-                                     # paste("`",LETTERS[1:NT],"_vs_A:Ivalrand:xcov`",sep=""),
-                                     "tau","seed"),
-                        Estimate=c(es_lOR,#beta_x,
-                                   tau,seedval),
-                        Comparator=c(rep(LETTERS[1:NT],1),NA,NA),
-                        Reference=c(rep("A",(1*NT)),NA,NA),
-                        paramtype=c(rep("es",NT),#rep("beta_x",NT),
-                                    "tau","seed"))
-
-refdat<-refdat_orig
-# all comparisons (UMIE models)
-for(i in 1:(NT)){
-  refdat<-refdat_orig%>%
-    group_by(paramtype)%>%
-    mutate(Comparator=Comparator,
-           Reference=lag(Comparator,i),
-           rowname=paste(paramtype,"_",Reference,Comparator,sep=""),
-           paramtype=paramtype,
-           Estimate=case_when(paramtype=="es"~Estimate-lag(Estimate,i),
-                              TRUE~Estimate),
-           graphname2=case_when(paramtype=="beta_x"~
-                                  paste("`",Comparator,"_vs_",Reference,":Ivalrand:xcov`",sep=""),
-                                paramtype=="es"~paste("treat_name",Comparator,sep=""),
-                                TRUE~graphname))%>%
-    ungroup()%>%
-    filter(is.na(Reference)==FALSE)%>%
-    bind_rows(refdat)
-	gc()
+} else {
+  for (i in 1:N.sim) {
+    data2[[i]] <- dat.studies_merge %>%
+      left_join(data2[[i]], by = c("treat","study", "treatment")) %>%
+      arrange(study, treat) %>%
+      select(study, treat, 
+             n, events, xcov, treatment, Ival_std, any_of("treat.ref"))
+  }
 }
 
-# reverse comparisons
-refdat<-refdat%>%
-  mutate(rowname=ifelse(!paramtype%in%c("tau","seed"),
-                        paste(paramtype,"_",Comparator,Reference,sep=""),rowname),
-         Estimate=ifelse(!paramtype%in%c("tau","seed","beta_x"),Estimate*-1,Estimate),
-         Comparatornew=Reference,
-         Reference=Comparator,
-         graphname=case_when(paramtype=="beta_x"~
-                               paste("`",Comparatornew,":xcov`",sep=""),
-                             paramtype=="es"~paste("treat_name",Comparatornew,sep=""),
-                             TRUE~graphname),
-         graphname2=case_when(paramtype=="beta_x"~
-                                paste("`",Comparatornew,"_vs_",Reference,":Ivalrand:xcov`",sep=""),
-                              paramtype=="es"~paste("treat_name",Comparatornew,sep=""),
-                              TRUE~graphname))%>%
-  select(-Comparator)%>%
-  rename(Comparator=Comparatornew)%>%
-  bind_rows(refdat)%>%
-  distinct()%>%
-  mutate(comp=paste(Comparator, Reference))
+# Reference Data   ############################
 
-refdat<-as.data.frame.table(beta_x)%>%
-  rename(Estimate=Freq,
-         Reference=Var1,
-         Comparator=Var2)%>%
-  mutate(rowname=paste(Comparator,Reference),
-         graphname=paste("`",Comparator,":xcov`",sep=""),
-         graphname2=paste("`",Comparator,"_vs_",Reference,":Ivalrand:xcov`",sep=""),,
-         paramtype="beta_x",
-         comp=paste(Comparator,Reference))%>%
+refdat_basic <- data.frame(
+  rowname    = c(paste0("es_A", LETTERS[1:NT]), "tau", "seed"),
+  graphname  = c(paste0("treat_name", LETTERS[1:NT]), "tau", "seed"),
+  graphname2 = c(paste0("treat_name", LETTERS[1:NT]), "tau", "seed"),
+  Estimate   = c(es_lOR, tau, seedval),
+  Comparator = c(LETTERS[1:NT], NA, NA),
+  Reference  = c(rep("A", NT), NA, NA),
+  paramtype  = c(rep("es", NT), "tau", "seed")
+)
+
+refdat <- refdat_basic
+
+# Add all pairwise comparisons
+for (i in 1:NT) {
+  shifted <- refdat_basic %>%
+    group_by(paramtype) %>%
+    mutate(
+      Reference = lag(Comparator, i),
+      rowname   = paste(paramtype, Reference, Comparator, sep = "_"),
+      Estimate  = ifelse(paramtype == "es", Estimate - lag(Estimate, i), Estimate),
+      graphname2 = case_when(
+        paramtype == "es" ~ paste0("treat_name", Comparator),
+        TRUE ~ graphname
+      )
+    ) %>%
+    filter(!is.na(Reference)) %>%
+    ungroup()
+  refdat <- bind_rows(refdat, shifted)
+  gc()
+}
+
+# Reverse comparisons
+refdat <- refdat %>%
+  mutate(
+    rowname = ifelse(!paramtype %in% c("tau","seed"),
+                     paste(paramtype, Comparator, Reference, sep = "_"), rowname),
+    Estimate = ifelse(paramtype == "es", -Estimate, Estimate),
+    Comparatornew = Reference,
+    Reference = Comparator,
+    graphname = ifelse(paramtype == "es", paste0("treat_name", Comparatornew), graphname),
+    graphname2 = ifelse(paramtype == "es",
+                        paste0("treat_name", Comparatornew),
+                        graphname2)
+  ) %>%
+  select(-Comparator) %>%
+  rename(Comparator = Comparatornew) %>%
+  bind_rows(refdat) %>%
+  distinct() %>%
+  mutate(comp = paste(Comparator, Reference))
+
+# Add interaction
+refdat <- as.data.frame.table(beta_x) %>%
+  rename(Estimate = Freq, Reference = Var1, Comparator = Var2) %>%
+  mutate(
+    rowname    = paste(Comparator, Reference),
+    graphname  = paste0("`", Comparator, ":xcov`"),
+    graphname2 = paste0("`", Comparator, "_vs_", Reference, ":Ivalrand:xcov`"),
+    paramtype  = "beta_x",
+    comp       = paste(Comparator, Reference)
+  ) %>%
   bind_rows(refdat)
+
