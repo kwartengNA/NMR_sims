@@ -9,7 +9,7 @@ as_df <- function(x,
   treat_key2$treat <- ifelse(treat_key2$treat== x$.netmeta$reference.group, "nonref", treat_key2$treat) # Not intuitive. Common with consistency only incorporates covariates from reference containing comparisons, so all non-ref contain the observed covariate levels of the reference
   treat_key<-unique(rbind(treat_key2,treat_key))
   
-  res_b_df <- data.frame(treat = "", est = x$b, se = x$se,
+  res_b_df <- data.frame(treat = "", coef = x$b, se = x$se,
                          lower = x$ci.lb, upper = x$ci.ub,
                          z = x$zval, pval = x$pval)
 						 
@@ -71,7 +71,7 @@ as_df <- function(x,
     ref_lvls <-
       merge(unique_lvls, res_b_interactions, by = c("treat_long","lvl", "treat"),
             all.x = TRUE)
-    ref_lvls <- ref_lvls[is.na(ref_lvls$est) == TRUE,c("treat_long","lvl", "treat")]
+    ref_lvls <- ref_lvls[is.na(ref_lvls$coef) == TRUE,c("treat_long","lvl", "treat")]
     colnames(ref_lvls)[colnames(ref_lvls) == "lvl"] <- "cov_ref"
     res_b_interactions <-
       merge(res_b_interactions, ref_lvls, by = c("treat_long", "treat"), all.x = TRUE) # should be many to 1. If there is an issue then it is likely in rma.mv
@@ -88,7 +88,7 @@ as_df <- function(x,
   #
   res <- res[, c("type", "treat",
                  if (!is_num) "cov_lvl", if (!is_num) "cov_ref",
-                 "est", "se", "lower", "upper", "z", "pval")]
+                 "coef", "se", "lower", "upper", "z", "pval")]
   #
   res
 }

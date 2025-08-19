@@ -207,8 +207,8 @@ netmetareg.netmeta <- function(x, covar = NULL,
     dat$n1 <- ifelse(x$data$treat1==x$data$.treat1, x$data$n1, x$data$n2)
     dat$n2 <- ifelse(x$data$treat2==x$data$.treat2, x$data$n2, x$data$n1)
   }
-  if (!is.null(x$data$incr)) {
-    dat$incr <- x$data$incr
+  if (!is.null(x$incr)) { #July 2025 meta update now assigns incr to netmeta rather than pairwise object
+    dat$incr <- x$incr
   }
 
   # RETURN need more comprehensive logic/ability to supply Ival for UMIE
