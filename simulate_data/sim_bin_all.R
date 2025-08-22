@@ -132,19 +132,26 @@ if (true_arms == "multiarm") {
 if (!exists("dat.studies_merge")) dat.studies_merge <- NULL
 
 if (is.null(dat.studies_merge)) {
-  while (sum(dat.studies_merge$treat == 1) <= 1) {
-    alltwoarm_studyids <- dat.studies_long %>% count(study) %>% filter(n == 2)
+  while (sum(dat.studies_merge$treat == 1) <= 1) { # check that there are at least 2 studies containing reference A. Otherwise we get failures in the models with consistency
+    allstudyids<-dat.studies_long %>% count(study)
+    # alltwoarm_studyids <- dat.studies_long %>% count(study) %>% filter(n == 2)
     allmultiarm <- dat.studies_long %>% count(study) %>% filter(n > 2)
-    
+    keep_studies<-NULL
+    while(length(allmultiarm)!=0 & sum(keep_studies %in% allmultiarm$study)<1){# check if there is at least 1 multi-arm study
     keep_studies <- sample(
-      alltwoarm_studyids$study,
-      floor(keep_prop * length(unique(dat.studies_long$study))) - nrow(allmultiarm),
+      allstudyids$study,#alltwoarm_studyids$study,
+      round(keep_prop * length(allstudyids$study)),# floor(keep_prop * length(unique(dat.studies_long$study))) - nrow(allmultiarm),
       replace = FALSE
     )
-    keep_studies <- c(keep_studies, allmultiarm$study)
+    }
+    
+    
+    
+    keep_studies <- c(keep_studies)
     dat.studies_merge <- dat.studies_long %>% filter(study %in% keep_studies)
   }
-  rm(allmultiarm, alltwoarm_studyids, keep_studies)
+  rm(allmultiarm, #alltwoarm_studyids, 
+     keep_studies)
 }
 
 if (true_arms == "mixarm") {
@@ -170,9 +177,7 @@ if (true_arms == "mixarm") {
 # Reference Data   ############################
 
 refdat_basic <- data.frame(
-  rowname    = c(paste0("es_A", LETTERS[1:NT]), "tau", "seed"),
-  graphname  = c(paste0("treat_name", LETTERS[1:NT]), "tau", "seed"),
-  graphname2 = c(paste0("treat_name", LETTERS[1:NT]), "tau", "seed"),
+  # rowname    = c(paste0("es_A", LETTERS[1:NT]), "tau", "seed"),
   Estimate   = c(es_lOR, tau, seedval),
   Comparator = c(LETTERS[1:NT], NA, NA),
   Reference  = c(rep("A", NT), NA, NA),
@@ -188,12 +193,7 @@ for (i in 1:NT) {
     mutate(
       Reference = lag(Comparator, i),
       rowname   = paste(paramtype, Reference, Comparator, sep = "_"),
-      Estimate  = ifelse(paramtype == "es", Estimate - lag(Estimate, i), Estimate),
-      graphname2 = case_when(
-        paramtype == "es" ~ paste0("treat_name", Comparator),
-        TRUE ~ graphname
-      )
-    ) %>%
+      Estimate  = ifelse(paramtype == "es", Estimate - lag(Estimate, i), Estimate)) %>%
     filter(!is.na(Reference)) %>%
     ungroup()
   refdat <- bind_rows(refdat, shifted)
@@ -207,12 +207,7 @@ refdat <- refdat %>%
                      paste(paramtype, Comparator, Reference, sep = "_"), rowname),
     Estimate = ifelse(paramtype == "es", -Estimate, Estimate),
     Comparatornew = Reference,
-    Reference = Comparator,
-    graphname = ifelse(paramtype == "es", paste0("treat_name", Comparatornew), graphname),
-    graphname2 = ifelse(paramtype == "es",
-                        paste0("treat_name", Comparatornew),
-                        graphname2)
-  ) %>%
+    Reference = Comparator) %>%
   select(-Comparator) %>%
   rename(Comparator = Comparatornew) %>%
   bind_rows(refdat) %>%
@@ -224,8 +219,6 @@ refdat <- as.data.frame.table(beta_x) %>%
   rename(Estimate = Freq, Reference = Var1, Comparator = Var2) %>%
   mutate(
     rowname    = paste(Comparator, Reference),
-    graphname  = paste0("`", Comparator, ":xcov`"),
-    graphname2 = paste0("`", Comparator, "_vs_", Reference, ":Ivalrand:xcov`"),
     paramtype  = "beta_x",
     comp       = paste(Comparator, Reference)
   ) %>%

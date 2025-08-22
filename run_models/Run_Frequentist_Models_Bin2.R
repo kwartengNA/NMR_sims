@@ -1,6 +1,27 @@
 # Define functions for models/output using netmetareg ##########
 
-## NMA ##########################
+## NMA with try catch ##########################
+run_netmeta<-function(x){ # each individual dataset
+
+  
+  tryCatch({
+    mynma<-netmeta(x, method.tau = "REML", reference.group = "A")
+      }, 
+  
+  error=function(e){cat("ERROR in simulation: ",conditionMessage(e), "\n")},
+  
+  finally = if(exists("mynma")==FALSE){
+    mynma<-data.frame(error=TRUE)}
+  
+  )
+  
+  return(mynma)
+  
+}
+
+
+
+## NMA results ##########################
 run_NMA<-function(data_filter){ # each individual dataset
   
   mynet<-data_filter
@@ -293,7 +314,9 @@ clusterExport(cl, "data2")
 data2_pairwise<-parLapply(cl,data2, function(x) pairwise(treat=treatment,n = n,event = events,studlab=study,data=x,sm="OR"))
 
 clusterExport(cl,c("data2_pairwise"))
-data2_netmeta<-parLapply(cl,data2_pairwise, function(x)netmeta(x, method.tau = "REML", reference.group = "A"))
+clusterExport(cl, "run_netmeta") #netmeta with trycatch
+data2_netmeta<-parLapply(cl,1:N.sim, function(x)run_netmeta(data2_pairwise[[x]]))
+
 
 clusterExport(cl,c("data2_netmeta"))
 clusterExport(cl, "run_NMA")

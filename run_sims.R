@@ -91,7 +91,8 @@ for (true_consistency in consistency_options) {
                   event_rate = ifelse(outcome == "continuous", NA, event_rate))
                 
                 
-                
+                ##################################
+                print(loopdir) # so we know the status before the loop finishes
                 # Fit Models  ############################
                 if (outcome == "continuous") {
                   tryCatch({
@@ -102,6 +103,7 @@ for (true_consistency in consistency_options) {
                     beta_x<-refdat$Estimate[refdat$Reference=="A" & refdat$paramtype=="beta_x"]
                     jagsseedval<-seedval
                     N.sim<-ifelse(exists("N.sim")==FALSE,length(data2),N.sim)
+                    data2<-data2[1:N.sim]
                     gc()
                     
                     source("run_models/Run_JAGS_Models_Cont_all.R")
@@ -120,6 +122,7 @@ for (true_consistency in consistency_options) {
                   tryCatch({
                     refdat<-readRDS(file = paste(loopdir,"/refdat_binary.rds",sep=""))
                     data2_df<-readRDS(file = paste(loopdir,"/data2_binary.rds",sep=""))
+                    data2_df$sim<-as.numeric(data2_df$sim) # so that they retain numeric order
                     data2<-split(data2_df, data2_df$sim)
                     rm(data2_df)
                     gc()
@@ -129,9 +132,11 @@ for (true_consistency in consistency_options) {
                     N.sim<-ifelse(exists("N.sim")==FALSE,length(data2),N.sim)
                     data2<-data2[1:N.sim]
                     
-                    source("run_models/Run_JAGS_Models_Bin_all.R")#update
+                    source("run_models/Run_JAGS_Models_Bin_all.R")
+                    #source("run_models/get_jags_sims.R") # if they have been previously run, switch to get jags to save time
                     gc()
-                    source("run_models/Run_Frequentist_Models_Bin3.R")# update
+                    source("run_models/Run_Frequentist_Models_Bin2.R")
+                    saveRDS(all_freq_res_df, file = paste(loopdir,"/all_freq_res_df.rds",sep=""), compress="xz")
                     gc()
                     source("run_models/Output_Models.R")
                     saveRDS(all_res, file = paste(loopdir,"/res_binary.rds",sep=""), compress="xz")
@@ -191,4 +196,5 @@ expected %>%
               mutate(attempted = TRUE,
                      true_consistency = as.logical(true_consistency))) %>%
   count(true_arms, outcome, expected, attempted, success)
+
 
