@@ -23,7 +23,7 @@ keep_prop <- if (!exists("keep_prop")) 1 else keep_prop
 tau <- if (!exists("tau")) sqrt(runif(1, 0, 1)) else tau
 
 NT <- 7   # number of treatments
-NS <- 3   # number of studies per comparison (NS*NT for multi-arm)
+NS <- 4   # number of studies per comparison (NS*NT for multi-arm)
 
 # Patient allocation
 Npmin <- 30
@@ -102,7 +102,7 @@ if (true_arms == "multiarm") {
       
   # Multi-arm values
   NS_bkup <- NS
-  NS <- round(ctmixarm(NT)$nmulti)
+  NS <- round(ctmixarm(NT, NS)$nmulti)
   source("simulate_data/sim_bin_multiarm.R")
   armmulti_data2 <- data2
   armmulti_data1 <- data1
@@ -132,24 +132,24 @@ if (true_arms == "multiarm") {
 if (!exists("dat.studies_merge")) dat.studies_merge <- NULL
 
 if (is.null(dat.studies_merge)) {
-  while (sum(dat.studies_merge$treat == 1) <= 1) { # check that there are at least 2 studies containing reference A. Otherwise we get failures in the models with consistency
-    allstudyids<-dat.studies_long %>% count(study)
-    # alltwoarm_studyids <- dat.studies_long %>% count(study) %>% filter(n == 2)
-    allmultiarm <- dat.studies_long %>% count(study) %>% filter(n > 2)
-    keep_studies<-NULL
-    while(length(allmultiarm)!=0 & sum(keep_studies %in% allmultiarm$study)<1){# check if there is at least 1 multi-arm study
+  allstudyids<-dat.studies_long %>% count(study)
+  # alltwoarm_studyids <- dat.studies_long %>% count(study) %>% filter(n == 2)
+  allmultiarm <- dat.studies_long %>% count(study) %>% filter(n > 2)
+  keep_studies<-NULL
+  
+  # while (sum(dat.studies_merge$treat == 1) <= 1) { 
+    while((sum(dat.studies_merge$treat == 1) <= 1)|# check that there are at least 2 studies containing reference A. Otherwise we get failures in the models with consistency
+          is.null(keep_studies) | 
+          (nrow(allmultiarm)!=0 & sum(keep_studies %in% allmultiarm$study)<1)){# check if there is at least 1 multi-arm study
     keep_studies <- sample(
       allstudyids$study,#alltwoarm_studyids$study,
       round(keep_prop * length(allstudyids$study)),# floor(keep_prop * length(unique(dat.studies_long$study))) - nrow(allmultiarm),
-      replace = FALSE
-    )
-    }
-    
-    
-    
+      replace = FALSE)
     keep_studies <- c(keep_studies)
     dat.studies_merge <- dat.studies_long %>% filter(study %in% keep_studies)
-  }
+    }
+    
+  # }
   rm(allmultiarm, #alltwoarm_studyids, 
      keep_studies)
 }

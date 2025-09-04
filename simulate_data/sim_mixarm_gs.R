@@ -18,7 +18,7 @@ dat.combs3 <- data.frame(combs3, row.names = seq_len(nrow(combs3))) %>%
 dat.studies <- vector("list", N.sim)
 # creates structure of network ############
 for (i in 1) { 
-    n.multi<-round(ctmixarm(NT)$nmulti)
+    n.multi<-round(ctmixarm(NT, NS)$nmulti)
     #
     j <- 1
     k <- 0 # stop after 3000 repetitions
