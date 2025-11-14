@@ -3,8 +3,10 @@
 options(save.workspace = "no")
 num_cores <- 2
 gendir <- getwd()
-seedval <- 389
+seedval <- 545
 N.sim <- 1000
+NT <- 7   # number of treatments
+NS <- 4   # number of studies per comparison (NS*NT for multi-arm)
 
 # Custom library path
 .libPaths(c("/h/kwarteng/mypkgs", .libPaths()))
@@ -13,8 +15,8 @@ N.sim <- 1000
 consistency_options <- c(TRUE, FALSE)
 assumption_options <- c("common", "independent","NMA")# 
 arm_options <- c("mixarm", "multiarm", "twoarm") 
-tau_options <- c("none", "moderate", "high") 
-density_options <- c("low", "moderate_dense","moderate_sparse", "full")
+tau_options <- c("none", "moderate","moderate3") # none moderate moderate3
+density_options <- c("low", "moderate_dense","moderate","moderate_sparse","full")# "moderate_dense","moderate","moderate_sparse","full"
 event_rate_options <- c("moderate") 
 outcome_options <- c("binary") 
 interaction_direction_options <- c("positive")
@@ -32,8 +34,12 @@ library(tidyr)
 get_tau <- function(label) {
   dplyr::case_when(
     label == "none"     ~ 0,
-    label == "moderate" ~ 0.28, #Röver
-    label == "high"     ~ 0.5
+    # label == "moderate" ~ 0.25,
+    # label == "moderate" ~0.24, #doi:10.1093/ije/dys041. Semi Objective Non Pharmacological
+    # label == "moderate2" ~0.36, #doi:10.1093/ije/dys041. Subjective Non Pharmacological
+    label == "moderate" ~ 0.28, # https://onlinelibrary.wiley.com/doi/epdf/10.1002/sim.6381 # median rlnorm(10000,-2.56,1.74)
+    label == "moderate3" ~0.5#, # 3rd quartile rlnorm(10000,-2.56,1.74)
+    # label == "high"     ~ 1 # Seide
   )
 }
 
@@ -41,8 +47,10 @@ get_tau <- function(label) {
 get_keep_prop <- function(label) {
   dplyr::case_when(
     label == "full"      ~ 1,
+    label == "all"      ~ 1,
     label == "moderate_dense" ~ 0.75,
-    label == "moderate_sparse" ~ 0.5,
+    label == "moderate" ~ 0.5,
+    label == "moderate_sparse" ~ 0.35,
     label == "low"      ~ 0.25
   )
 }
@@ -77,7 +85,7 @@ build_loopdir <- function(outcome, arms, consistency, assumption, tau, density, 
 # Exclusion logic
 should_skip <- function(outcome, event_rate, interaction_direction, arms, density, consistency, assumption) {
   if (outcome == "continuous" && (event_rate != "moderate" || interaction_direction != "positive")) return(TRUE)
-  if (arms == "multiarm" && (density != "full" || !consistency)) return(TRUE)
+  if (arms == "multiarm" && (! density %in% c("full","all") || !consistency)) return(TRUE)
   if (assumption == "NMA" && !consistency) return(TRUE)
   FALSE
 }
@@ -144,6 +152,7 @@ for (true_consistency in consistency_options) {
                   assign("dat.studies_merge",get(paste("dat.studies_merge", keep_prop_txt, true_arms, sep="_")))
                 }
                 
+              
                 # Simulate Data ############################
                 if (outcome == "continuous") {
                   tryCatch({

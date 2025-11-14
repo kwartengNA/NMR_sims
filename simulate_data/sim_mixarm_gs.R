@@ -58,8 +58,8 @@ for (i in 1) {
     # Add pairwise comparisons only consisting of two-arm studies
     #
     dat.2arm <- dat.merge %>% filter(is.na(multi)) %>% select(-multi)
-    dat.2arm <- rbind(dat.2arm, dat.2arm, dat.2arm)
-    #
+    dat.2arm <- do.call(rbind, replicate(NS, dat.2arm, simplify = FALSE))
+    
     dat.2arm %<>% mutate(study = row_number() + n.multi) %>%
       relocate(study, .before = treat1) %>%
       mutate(comparison = paste(treat1, "vs", treat2))
@@ -75,7 +75,7 @@ for (i in 1) {
     ttab <- table(dat.studies$comparison)
     #
     for (j in dat.3arm$comparison) {
-      for (k in seq_len(3 - ttab[j])) {
+      for (k in seq_len(NS - ttab[j])) {
         dat.jk <- dat.3arm %>% filter(comparison == j) %>%
           mutate(study = max(dat.studies$study) + 1)
         #

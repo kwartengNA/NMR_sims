@@ -22,9 +22,6 @@ N.sim <- if (!exists("N.sim")) 2 else N.sim   # number of simulations
 keep_prop <- if (!exists("keep_prop")) 1 else keep_prop
 tau <- if (!exists("tau")) sqrt(runif(1, 0, 1)) else tau
 
-NT <- 7   # number of treatments
-NS <- 4   # number of studies per comparison (NS*NT for multi-arm)
-
 # Patient allocation
 Npmin <- 30
 Npmax <- 60
