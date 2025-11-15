@@ -14,42 +14,22 @@ N.sim<- max(as.numeric(diag_res$simulation))
 gc()
 
 # custom transform seed 545 #################
-# graph_res<-graph_res%>%
-#   mutate(tau=as.factor(ifelse(tau_txt=="moderate3","tau_high", as.character(tau))),
-#          tau_txt=as.factor(ifelse(tau_txt=="moderate3","high", as.character(tau_txt))))%>%
-#   filter(density!="connect_low")%>%
-#   filter(implemented_model!="Independent\nUMIE\nmax")%>%
-#   filter(implemented_model!="Common_old")%>%
-#   mutate(densitybkup=density,
-#          density=case_when(densitybkup=="connect_full"~100,
-#                            densitybkup=="connect_moderate"~50,
-#                            densitybkup=="connect_moderate_dense"~75,
-#                            densitybkup=="connect_moderate_sparse"~35,
-#                            TRUE~as.numeric(NA)),
-#          comp=ifelse(comp=="NA NA", NA, comp),
-#          reference_treat=substr(comp,3,3),
-#          comparator_treat=substr(comp,1,1))%>%
-#   mutate(density=factor(density, 
-#                         levels = rev(sort(unique(density)))),
-#          tau=factor(tau, levels=rev(sort(unique(tau)))))
-# 
-# alldata2<-alldata2%>%
-#   mutate(tau=as.factor(ifelse(tau_txt=="moderate3","tau_high", as.character(tau))),
-#          tau_txt=as.factor(ifelse(tau_txt=="moderate3","high", as.character(tau_txt))))%>%
-#   filter(density!="connect_low")%>%
-#   mutate(densitybkup=density,
-#          density=case_when(densitybkup=="connect_full"~100,
-#                            densitybkup=="connect_moderate"~50,
-#                            densitybkup=="connect_moderate_dense"~75,
-#                            densitybkup=="connect_moderate_sparse"~35,
-#                            TRUE~as.numeric(NA)))%>%
-#   mutate(density=factor(density, 
-#                 levels = rev(sort(unique(density)))),
-#          tau=factor(tau, levels=rev(sort(unique(tau)))))
+graph_res<-graph_res%>%
+  mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")),
+         parameter=ifelse(parameter=="tau", "\u03C4", parameter))%>%#add to dataset
+  rename(Source=src)
+
+diag_res<-diag_res%>%
+  mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")),
+         parameter=ifelse(parameter=="tau", "\u03C4", parameter))%>%#add to dataset
+  rename(Source=src)
+
+alldata2<-alldata2%>%
+  mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")))
 
 # shiny part ##################
 
-# scale transformation for Radar Plots #############
+# scale transformation for Comparison Plots #############
 stretch_trans<-scales::trans_new(
   name = "stretch_trans",
   transform = function(x) ifelse(x <= 0.8,
@@ -66,7 +46,7 @@ direct_evidence_col<-data.frame(sumdir=1:4,
 # ui #########
 
 ui <- dashboardPage(
-  skin="yellow",
+  skin="blue",
   dashboardHeader(title = "NMR Simulation Summary Statistics",
                   # Insert tabs in header
                   tags$li(class = "dropdown",
@@ -78,9 +58,9 @@ ui <- dashboardPage(
                             tabPanel("MSE"),
                             tabPanel("CI Length"),
                             tabPanel("Diagnostics"),
-                            tabPanel("Coverage Radar"),
-                            tabPanel("Bias Radar"),
-                            tabPanel("CI Length Radar"),
+                            tabPanel("Coverage Comparison"),
+                            tabPanel("Bias Comparison"),
+                            tabPanel("CI Length Comparison"),
                             tabPanel("Networks"),
                             tabPanel("Data")
                           )
@@ -90,21 +70,21 @@ ui <- dashboardPage(
   dashboardSidebar(
     conditionalPanel(
       condition = "input.main_tabs == 'Diagnostics'",
-      selectInput(inputId="choose_coef", label="Choose Measure", 
-                  choices=list("diagnostics"=unique(diag_res$parameter)), multiple=TRUE, selected="dev")
+      selectInput(inputId="choose_diag", label="Choose Measure", 
+                  choices=list("diagnostics"=unique(diag_res$parameter)), multiple=TRUE, selected="AIC")
     ),
     conditionalPanel(
-      condition = "['Coverage', 'Bias', 'MSE', 'CI Length','Data','Coverage Radar','Bias Radar','CI Length Radar'].includes(input.main_tabs)",
+      condition = "['Coverage', 'Bias', 'MSE', 'CI Length','Data','Coverage Comparison','Bias Comparison','CI Length Comparison'].includes(input.main_tabs)",
       selectInput(inputId="choose_coef", label="Choose Parameter", 
                   choices=list("coefficients"=unique(graph_res$parameter)), multiple=TRUE, selected="(Adjusted)\nTreatment Effect")
     ),
     conditionalPanel(
-      condition = "['Data','Coverage Radar','Bias Radar','CI Length Radar'].includes(input.main_tabs)",
+      condition = "['Data','Coverage Comparison','Bias Comparison','CI Length Comparison'].includes(input.main_tabs)",
       selectInput(inputId="choose_reference", label="Choose Reference Treatment", 
                   choices=list("coefficients"=unique(graph_res$reference_treat)), multiple=TRUE, selected=unique(graph_res$reference_treat))
     ),
     conditionalPanel(
-      condition = "['Data','Coverage Radar','Bias Radar','CI Length Radar'].includes(input.main_tabs)",
+      condition = "['Data','Coverage Comparison','Bias Comparison','CI Length Comparison'].includes(input.main_tabs)",
       selectInput(inputId="choose_comparator", label="Choose Comparator Treatment", 
                   choices=list("coefficients"=unique(graph_res$comparator_treat)), multiple=TRUE, selected=unique(graph_res$reference_treat))
     ),
@@ -120,40 +100,102 @@ ui <- dashboardPage(
   ),
   
   dashboardBody(
+    ##ui: aesthetics ###########
+    tags$head(
+      tags$style(HTML("
+    /* Main header bar grey */
+    .skin-blue .main-header .navbar {
+      background-color: #4A4A4A;
+    }
+
+    /* Logo section on the left side grey */
+    .skin-blue .main-header .logo {
+      background-color: #4A4A4A;
+      color: #ffffff !important;
+      border-bottom: 0;
+    }
+
+    /* Logo hover: not an active button*/
+    .skin-blue .main-header .logo:hover {
+      background-color: #002878; 
+    }
+    
+    /* Hover effect */
+    .skin-blue .main-header .navbar .sidebar-toggle:hover {
+      background-color: #002878;  /* hover background */
+      color: #000000;              /* hover icon color */
+    }
+    
+    /* Sidebar full background */
+    .skin-blue .main-sidebar,
+    .skin-blue .left-side {
+      background-color: #002878;
+    }
+
+    /* Sidebar menu item text */
+    .skin-blue .sidebar a {
+      color: #ffffff;
+    }
+
+    /* Active menu item highlight */
+    .skin-blue .sidebar .sidebar-menu > li.active > a {
+      background-color: #FCB0B3;
+      color: #ffffff;
+    }
+
+    /* Menu item hover */
+    .skin-blue .sidebar .sidebar-menu > li > a:hover {
+      background-color: #FCECC9;
+      color: #ffffff;
+    }
+    
+     /* Page background */
+    .content-wrapper, .right-side, .main-body {
+      background-color: #ffffff !important;
+    }
+    body, html {
+      background-color: #ffffff !important;
+    }
+  "))
+    ),
+    ##ui: page content ##################
+    
+    
     conditionalPanel(
       condition = "input.main_tabs == 'Coverage'",
-      shinycssloaders::withSpinner(imageOutput('coverageplot', height = "80vh"))
+      shinycssloaders::withSpinner(imageOutput('coverageplot', height = "100vh"))
     ),
     conditionalPanel(
       condition = "input.main_tabs == 'Bias'",
-      shinycssloaders::withSpinner(imageOutput('biasplot', height = "80vh"))
+      shinycssloaders::withSpinner(imageOutput('biasplot', height = "100vh"))
     ),
     conditionalPanel(
       condition = "input.main_tabs == 'MSE'",
-      shinycssloaders::withSpinner(imageOutput('mseplot', height = "80vh"))
+      shinycssloaders::withSpinner(imageOutput('mseplot', height = "100vh")),
+      shinycssloaders::withSpinner(imageOutput('mseplottrend', height = "100vh"))
     ),
     conditionalPanel(
       condition = "input.main_tabs == 'CI Length'",
-      shinycssloaders::withSpinner(imageOutput('cilengthplot', height = "80vh"))
+      shinycssloaders::withSpinner(imageOutput('cilengthplot', height = "100vh"))
     ),
     conditionalPanel(
       condition = "input.main_tabs == 'Diagnostics'",
       shinycssloaders::withSpinner(imageOutput('aicplot', height = "80vh"))
     ),
     conditionalPanel(
-      condition = "input.main_tabs == 'Coverage Radar'",
-      imageOutput('coverageradar_es', height = "80vh"),
-      imageOutput('coverageradar_beta', height = "80vh")
+      condition = "input.main_tabs == 'Coverage Comparison'",
+      imageOutput('coverageComparison_es', height = "120vh"),
+      imageOutput('coverageComparison_beta', height = "120vh")
     ),
     conditionalPanel(
-      condition = "input.main_tabs == 'Bias Radar'",
-      imageOutput('biasradar_es', height = "80vh"),
-      imageOutput('biasradar_beta', height = "80vh")
+      condition = "input.main_tabs == 'Bias Comparison'",
+      imageOutput('biasComparison_es', height = "80vh"),
+      imageOutput('biasComparison_beta', height = "80vh")
     ),
     conditionalPanel(
-      condition = "input.main_tabs == 'CI Length Radar'",
-      imageOutput('cilengthplotradar_es', height = "80vh"),
-      imageOutput('cilengthplotradar_beta', height = "80vh")
+      condition = "input.main_tabs == 'CI Length Comparison'",
+      imageOutput('cilengthplotComparison_es', height = "80vh"),
+      imageOutput('cilengthplotComparison_beta', height = "80vh")
     ),
     conditionalPanel(
       condition = "input.main_tabs == 'Networks'",
@@ -202,7 +244,7 @@ server <- function(input, output, session) {
   })
   
   output$choose_src <- renderUI({
-    checkboxGroupInput(inputId="src",label="Choose Source", choices=unique(graph_res$src), selected=c("Bayesian", "Frequentist"))
+    checkboxGroupInput(inputId="src",label="Choose Source", choices=unique(graph_res$Source), selected=c("Bayesian", "Frequentist"))
   })
   
   output$togglevalue_mse<-renderUI({
@@ -216,13 +258,6 @@ server <- function(input, output, session) {
   output$togglevalue_bias<-renderUI({
     radioButtons(inputId="togglevalue_bias",label="Show Value?", choices=c(TRUE,FALSE), selected=TRUE)
   })
-  # output$togglefill_bias<-renderUI({
-  #   radioButtons(inputId="togglefill_bias",label="Fill by", choices=c("mean_bias_tau_trend","mean_bias_density_trend"), selected="mean_bias_tau_trend")
-  # })
-  # 
-  # output$togglefill_mse<-renderUI({
-  #   radioButtons(inputId="togglefill_mse",label="Fill by", choices=c("mean_mse_tau_trend","mean_mse_density_trend"), selected="mean_mse_tau_trend")
-  # })
   
   
   # Subset so that only the selected rows are in coef.data, unique_networks, and diag.data ####################
@@ -249,7 +284,7 @@ server <- function(input, output, session) {
       filter(tau_txt%in%c(input$true_tau))%>%
       filter(density_txt%in%c(input$true_density))%>%
       filter(implemented_model%in%input$implemented_model)%>%
-      filter(src%in%input$src)%>%
+      filter(Source%in%input$src)%>%
       filter(parameter%in%c(input$choose_coef))#%>%
       # filter(reference_treat %in%c(input$choose_reference))%>%
       # filter(comparator_treat %in%c(input$choose_comparator))
@@ -263,14 +298,14 @@ server <- function(input, output, session) {
   
   diag.data <- reactive({
     diag_res%>%
-      filter(parameter%in%c(input$choose_coef))%>%
+      filter(parameter%in%c(input$choose_diag))%>%
       filter(true_arms%in%c(input$true_arms))%>%
       filter(true_assumption%in%c(input$true_across_studies))%>%
       filter(true_consistency%in%c(input$true_consistency))%>%
       filter(tau_txt%in%c(input$true_tau))%>%
       filter(density_txt%in%c(input$true_density))%>%
       filter(implemented_model%in%input$implemented_model)%>%
-      filter(src%in%input$src)
+      filter(Source%in%input$src)
   })
   
   # outputs other ###########################
@@ -330,62 +365,66 @@ server <- function(input, output, session) {
     coverageplot<-
       coef.data()%>%
       filter(parameter %in%c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect"))%>%#no tau
-      select(src,implemented_model,parameter,
+      select(Source,implemented_model,parameter,
              starts_with("mean"),prop_coverage,
              true_model,tau, density, true_arms)%>%
       distinct()%>%
-      ggplot(aes(x=implemented_model, y=prop_coverage, fill=implemented_model, alpha=src))+
+      ggplot(aes(x=implemented_model, y=prop_coverage, fill=implemented_model, alpha=Source))+
       geom_bar(stat="identity",position=position_dodge(), color="black")+
       geom_hline(aes(yintercept = 0.95), lty=2, linewidth=1)+
       geom_hline(aes(yintercept = (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim))),lty=2,linewidth=1)+#ul
       geom_hline(aes(yintercept =(0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim))),lty=2, linewidth=1)+#ll
       scale_alpha_manual(values=c("Bayesian"=0.25,"Frequentist"=1))+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
-      scale_y_continuous(trans=scales::trans_new(name="sq",
+      scale_y_continuous(name="Coverage Proportion",
+                         trans=scales::trans_new(name="sq",
                                                  transform = function(x)x-0.95,
                                                  inverse=function(y) y+0.95),
                          breaks=c((0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)),
                                   (0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)),
-                                  seq(0,1,0.05)))+
+                                  seq(0,1,0.05)),
+                         labels = function(x) format(round(x, 2), nsmall = 2))+
+      scale_x_discrete(name="Implemented Model")+
+      labs(fill="Implemented Model")+
       facet_grid(as.formula(paste("parameter ~", facets)),scales = "free_y")+
       theme_bw()+
       theme(text = element_text(size = 16), axis.text.x = element_text(angle=90, vjust = 0), panel.spacing = unit(0, "lines"))
     
     print(coverageplot)
   })
-  output$coverageradar_es <- renderPlot({
+  output$coverageComparison_es <- renderPlot({
     req(input$facet)
     req(nrow(comparison.data()) > 0)
     # print(unique(comparison.data()$parameter))
     facets<-paste(rev(input$facet), collapse="+")
     
-    coverageradar_es<-comparison.data()%>%
+    coverageComparison_es<-comparison.data()%>%
       filter(parameter%in%c("(Adjusted)\nTreatment Effect"))%>%
-      mutate(modelsrc=paste(src, implemented_model))%>%
+      mutate(modelsrc=paste(Source, implemented_model))%>%
       ggplot()+
       geom_hline(aes(yintercept =1),color = "black")+
       geom_hline(aes(yintercept =yint), data=data.frame(yint = seq((0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), #llimit, 
                                                                    (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), # ulimit, 
                                                                    0.0001)),color = "lightgrey")+# shaded confidence region
-      geom_point(aes(x=comparison, y = coverage, color=implemented_model, shape = src))+
-      geom_line(aes(x=comparison, y = coverage, group=modelsrc, color=implemented_model, lty=src), lwd=1)+
+      geom_point(aes(x=comparison, y = coverage, color=implemented_model, shape = Source))+
+      geom_line(aes(x=comparison, y = coverage, group=modelsrc, color=implemented_model, lty=Source), lwd=1)+
       scale_color_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
       scale_linetype_manual(values=c("Bayesian"=2, "Frequentist"=1))+
-      scale_y_continuous(trans=stretch_trans, limits=c(0,1), breaks = seq(0.8,1, 0.05))+
+      scale_y_continuous(name = "Coverage Proportion", trans=stretch_trans, limits=c(0,1), breaks = seq(0.8,1, 0.05))+
       facet_grid(density~tau+parameter)+
       coord_polar()+
       theme_bw()
-    print(coverageradar_es)
+    print(coverageComparison_es)
     
   })
-  output$coverageradar_beta <- renderPlot({
+  output$coverageComparison_beta <- renderPlot({
     req(input$facet)
     req(nrow(comparison.data()) > 0)
     # print(unique(comparison.data()$parameter))
     facets<-paste(rev(input$facet), collapse="+")
-    coverageradar_beta<-comparison.data()%>%
+    coverageComparison_beta<-comparison.data()%>%
       filter(parameter%in%c("Treatment:Covariate\nInteraction Effect"))%>%
-      mutate(modelsrc=paste(src, implemented_model))%>%
+      mutate(modelsrc=paste(Source, implemented_model))%>%
       ggplot()+
       # geom_hline(aes(yintercept =ulimit), size=1,color = "lightgrey")+# non shaded
       # geom_hline(aes(yintercept =llimit), color = "black")+
@@ -393,9 +432,9 @@ server <- function(input, output, session) {
       geom_hline(aes(yintercept =yint), data=data.frame(yint = seq((0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), #llimit, 
                                                                    (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), # ulimit, 
                                                                    0.0001)),color = "lightgrey")+# shaded confidence region
-      geom_point(aes(x=comparison, y = coverage, color=implemented_model, shape = src))+
-      geom_line(aes(x=comparison, y = coverage, group=modelsrc, color=implemented_model, lty=src), lwd=1)+
-      scale_y_continuous(trans=stretch_trans, limits=c(0,1), breaks = seq(0.8,1, 0.05))+
+      geom_point(aes(x=comparison, y = coverage, color=implemented_model, shape = Source))+
+      geom_line(aes(x=comparison, y = coverage, group=modelsrc, color=implemented_model, lty=Source), lwd=1)+
+      scale_y_continuous(name = "Coverage Proportion",trans=stretch_trans, limits=c(0,1), breaks = seq(0.8,1, 0.05))+
       scale_color_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
       scale_linetype_manual(values=c("Bayesian"=2, "Frequentist"=1))+
       facet_grid(density~tau+parameter)+
@@ -403,51 +442,49 @@ server <- function(input, output, session) {
       coord_polar()+
       theme_bw()
     
-    print(coverageradar_beta)
+    print(coverageComparison_beta)
     
   })
   
-  output$biasradar_es <- renderPlot({
+  output$biasComparison_es <- renderPlot({
     req(input$facet)
     req(nrow(comparison.data()) > 0)
     # print(unique(comparison.data()$parameter))
     facets<-paste(rev(input$facet), collapse="+")
     
-    biasradar_es<-comparison.data()%>%
+    biasComparison_es<-comparison.data()%>%
       filter(parameter=="(Adjusted)\nTreatment Effect")%>%
-      mutate(modelsrc=paste(src, implemented_model))%>%
+      mutate(modelsrc=paste(Source, implemented_model))%>%
       ggplot()+
-      geom_col(aes(x=comparison, y = bias, group=modelsrc, fill=implemented_model, alpha=src), lwd=1, position = position_dodge())+
+      geom_col(aes(x=comparison, y = bias, group=modelsrc, fill=implemented_model, alpha=Source), lwd=1, position = position_dodge())+
       geom_hline(aes(yintercept =0),color = "red",lwd=1)+
       facet_grid(density~tau+parameter)+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
       scale_alpha_manual(values=c("Bayesian"=0.5, "Frequentist"=1))+
-      scale_y_continuous(limits=c(-1*max(abs(comparison.data()$bias[comparison.data()$parameter=="(Adjusted)\nTreatment Effect"])),max(abs(comparison.data()$bias[comparison.data()$parameter=="(Adjusted)\nTreatment Effect"]))))+
-      coord_polar()+
+      scale_y_continuous(name  = "Mean Bias", limits=c(-1*max(abs(comparison.data()$bias[comparison.data()$parameter=="(Adjusted)\nTreatment Effect"])),max(abs(comparison.data()$bias[comparison.data()$parameter=="(Adjusted)\nTreatment Effect"]))))+
       theme_bw()
     
-    print(biasradar_es)
+    print(biasComparison_es)
     
   })
-  output$biasradar_beta <- renderPlot({
+  output$biasComparison_beta <- renderPlot({
     req(input$facet)
     req(nrow(comparison.data()) > 0)
     # print(unique(comparison.data()$parameter))
     facets<-paste(rev(input$facet), collapse="+")
-    biasradar_beta<-comparison.data()%>%
+    biasComparison_beta<-comparison.data()%>%
       filter(parameter=="Treatment:Covariate\nInteraction Effect")%>%
-      mutate(modelsrc=paste(src, implemented_model))%>%
+      mutate(modelsrc=paste(Source, implemented_model))%>%
       ggplot()+
-      geom_col(aes(x=comparison, y = bias, group=modelsrc, fill=implemented_model,  alpha=src), lwd=1, position = position_dodge())+
+      geom_col(aes(x=comparison, y = bias, group=modelsrc, fill=implemented_model,  alpha=Source), lwd=1, position = position_dodge())+
       geom_hline(aes(yintercept =0),color = "red",lwd=1)+
       facet_grid(density~tau+parameter)+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
       scale_alpha_manual(values=c("Bayesian"=0.5, "Frequentist"=1))+
-      scale_y_continuous(limits=c(-1*max(abs(comparison.data()$bias[comparison.data()$parameter=="Treatment:Covariate\nInteraction Effect"])),max(abs(comparison.data()$bias[comparison.data()$parameter=="Treatment:Covariate\nInteraction Effect"]))))+
-      coord_polar()+
+      scale_y_continuous(name  = "Mean Bias", limits=c(-1*max(abs(comparison.data()$bias[comparison.data()$parameter=="Treatment:Covariate\nInteraction Effect"])),max(abs(comparison.data()$bias[comparison.data()$parameter=="Treatment:Covariate\nInteraction Effect"]))))+
       theme_bw()
     
-    print(biasradar_beta)
+    print(biasComparison_beta)
     
   })
   output$biasplot <- renderPlot({
@@ -457,17 +494,20 @@ server <- function(input, output, session) {
     facets<-paste(rev(input$facet), collapse="+")
     
     biasplot<-coef.data()%>%
-      select(src,implemented_model,parameter,
+      select(Source,implemented_model,parameter,
              starts_with("mean"),prop_coverage,
              true_model,tau, density, true_arms)%>%
       distinct()%>%
-      ggplot(aes(x = implemented_model, y = mean_bias, fill = implemented_model, alpha=src)) +
+      ggplot(aes(x = implemented_model, y = mean_bias, fill = implemented_model, alpha=Source)) +
       geom_bar(stat="identity",position=position_dodge(), color="black")+
       geom_hline(aes(yintercept = 0))+
       facet_grid(as.formula(paste("parameter ~", facets)),scales = "free_y")+ #prompt for user input
       scale_alpha_manual(values=c("Bayesian"=0.25,"Frequentist"=1))+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
       theme_bw()+
+      ylab(label = "Mean Bias")+
+      scale_x_discrete(name="Implemented Model")+
+      labs(fill="Implemented Model")+
       theme(text = element_text(size = 16), axis.text.x = element_text(angle=90, vjust = 0), panel.spacing = unit(0, "lines"))
     
     print(biasplot)
@@ -482,11 +522,11 @@ server <- function(input, output, session) {
     
     cilengthplot<-
       coef.data()%>%
-      select(src,implemented_model,parameter,
+      select(Source,implemented_model,parameter,
              starts_with("mean"),prop_coverage,
              true_model,tau, density, true_arms)%>%
       distinct()%>%
-      ggplot(aes(x = implemented_model, y = mean_CI_length, fill = implemented_model, alpha=src)) +
+      ggplot(aes(x = implemented_model, y = mean_CI_length, fill = implemented_model, alpha=Source)) +
       geom_bar(stat="identity",position=position_dodge(), color="black")+
       geom_hline(aes(yintercept = 0))+
       # facet_grid(parameter~tau+density,scales = "free_y")+ #manual debugging
@@ -494,63 +534,98 @@ server <- function(input, output, session) {
       # scale_fill_manual(values=c("Bayesian"="#FAA613","Frequentist"="#000080"))+
       scale_alpha_manual(values=c("Bayesian"=0.25,"Frequentist"=1))+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
+      scale_x_discrete(name="Implemented Model")+
+      ylab(label = "Mean Confidence Interval Length")+
+      labs(fill="Implemented Model")+
       theme_bw()+
       theme(text = element_text(size = 16), axis.text.x = element_text(angle=90, vjust = 0), panel.spacing = unit(0, "lines"))
     
     print(cilengthplot)
   })
-  output$cilengthplotradar_es <- renderPlot({
+  output$cilengthplotComparison_es <- renderPlot({
     req(input$facet)
     req(nrow(comparison.data()) > 0)
     # print(unique(comparison.data()$parameter))
     facets<-paste(rev(input$facet), collapse="+")
     
-    cilengthplotradar_es<-comparison.data()%>%
+    cilengthplotComparison_es<-comparison.data()%>%
       filter(parameter%in%c("(Adjusted)\nTreatment Effect"))%>%
-      mutate(modelsrc=paste(src, implemented_model))%>%
+      mutate(modelsrc=paste(Source, implemented_model))%>%
       ggplot()+
-      geom_col(aes(x=comparison, y = CI_length, fill=implemented_model, alpha=src), position = position_dodge())+
+      geom_col(aes(x=comparison, y = CI_length, fill=implemented_model, alpha=Source), position = position_dodge())+
       scale_alpha_manual(values=c("Bayesian"=0.5, "Frequentist"=1))+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
+      ylab(label = "Mean Confidence Interval Length")+
       facet_grid(density~tau+parameter)+
       theme_bw()
     
-      print(cilengthplotradar_es)
+      print(cilengthplotComparison_es)
     
   })
   
-  output$cilengthplotradar_beta <- renderPlot({
+  output$cilengthplotComparison_beta <- renderPlot({
     req(input$facet)
     req(nrow(comparison.data()) > 0)
     facets<-paste(rev(input$facet), collapse="+")
     
-    cilengthplotradar_beta<-comparison.data()%>%
+    cilengthplotComparison_beta<-comparison.data()%>%
       filter(parameter%in%c("Treatment:Covariate\nInteraction Effect"))%>%
-      mutate(modelsrc=paste(src, implemented_model))%>%
+      mutate(modelsrc=paste(Source, implemented_model))%>%
       ggplot()+
-      geom_col(aes(x=comparison, y = CI_length, fill=implemented_model, alpha=src), position = position_dodge())+
+      geom_col(aes(x=comparison, y = CI_length, fill=implemented_model, alpha=Source), position = position_dodge())+
       scale_alpha_manual(values=c("Bayesian"=0.5, "Frequentist"=1))+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
+      ylab(label = "Mean Confidence Interval Length")+
       facet_grid(density~tau+parameter)+
       theme_bw()
-    print(cilengthplotradar_beta)
+    print(cilengthplotComparison_beta)
+  })
+  output$mseplottrend <- renderPlot({
+    req(input$facet)
+    req(nrow(coef.data()) > 0)
+    facets<-paste(rev(input$facet), collapse="+")
+    
+    
+    mseplottrend<-coef.data()%>%
+      # filter(true_model=="NMA" & true_arms=="twoarm" & parameter=="(Adjusted)\nTreatment Effect")%>%
+      select(Source,implemented_model,parameter,
+             starts_with("mean"),prop_coverage,
+             true_model,tau, density, true_arms)%>%
+      mutate(modelsrc=paste(implemented_model,Source))%>%
+      distinct()%>%
+      ggplot(aes(x = interaction(density,tau, sep = "\n"), y = mean_mse, color = implemented_model, group = modelsrc, alpha=Source)) +
+      geom_line(linewidth = 1) +
+      geom_hline(aes(yintercept = 0))+
+      geom_point(size = 2) +
+      xlab(label = "Scenario")+
+      ylab(label = "Mean MSE")+
+      geom_point()+
+      geom_hline(aes(yintercept = 0))+
+      facet_grid(as.formula(paste("parameter ~", facets)),scales = "free_y")+
+      scale_alpha_manual(values=c("Bayesian"=0.25,"Frequentist"=1))+
+      scale_color_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
+      scale_x_discrete(name="Implemented Model")+
+      labs(fill="Implemented Model")+
+      theme_bw()+
+      theme(text = element_text(size = 16), axis.text.x = element_text(angle=90, vjust = 0), panel.spacing = unit(0, "lines"))
+    
+    print(mseplottrend)
   })
   output$mseplot <- renderPlot({
     req(input$facet)
     req(nrow(coef.data()) > 0)
-    # print(unique(coef.data()$parameter))
     facets<-paste(rev(input$facet), collapse="+")
     
     mseplot<-coef.data()%>%
-      select(src,implemented_model,parameter,
+      select(Source,implemented_model,parameter,
              starts_with("mean"),prop_coverage,
              true_model,tau, density, true_arms)%>%
       distinct()%>%
       ggplot(aes(x = implemented_model, y=mean_mse,
-                 fill = implemented_model, alpha=src)) +
+                 fill = implemented_model, alpha=Source)) +
       geom_bar(stat="identity",position=position_dodge(), color="black")+
       geom_hline(aes(yintercept = 0))+
-      facet_grid(as.formula(paste("parameter ~", facets)),scales = "free_y")+ 
+      facet_grid(parameter~tau+density,scales = "free_y")+
       scale_alpha_manual(values=c("Bayesian"=0.25,"Frequentist"=1))+
       scale_fill_manual(values=c("Common"="#000080","Common\nUMIE"="#1C77C3", "Independent"="#FF33CC", "Independent\nUMIE"="#D7263D","Independent\nUMIE"="#D7263D", "NMA"="#FBCEB1"))+
       theme_bw()+
@@ -558,6 +633,7 @@ server <- function(input, output, session) {
     
     print(mseplot)
   })
+  
   
 
   
