@@ -36,8 +36,6 @@ n.iter = 30000
 n.burnin = 10000
 # JAGS data prep ###################
 
-
-# JAGS data prep ###################
 build_data_filter <- function(simid){
   temp_mydata_wide<-
     data2[[simid]]%>%
@@ -51,7 +49,7 @@ build_data_filter <- function(simid){
            treat_order=row_number())%>%
     ungroup()%>%
     tidyr::pivot_wider(names_from = treat_order,
-                       values_from =c("events","n","treat_num","treatment",starts_with("Ival_")))#"Ival_std", "Ival_gen"
+                       values_from =c("events","n","treat_num","treatment","r",starts_with("Ival_")))#"Ival_std", "Ival_gen"
   
   data_filter <- list("ns"=length(unique(temp_mydata_wide$study)),
                       "nt"=max(temp_mydata_wide%>%
@@ -63,10 +61,10 @@ build_data_filter <- function(simid){
                       ## need a column for each arm
                       "t"=temp_mydata_wide%>%select(starts_with("treat_num")),
                       ## need a column for each arm
-                      "r"=temp_mydata_wide%>%select(starts_with("events_")),
+                      "r"=temp_mydata_wide%>%select(starts_with("r_")),
                       "n"=temp_mydata_wide%>%select(starts_with("n_")),
                       ## need a column for each arm
-                      "I_dir"= temp_mydata_wide%>%select(starts_with("Ival_std_"))
+                      "I_dir"= temp_mydata_wide%>%select(starts_with("Ival_order_"))
   )
   
   return(data_filter)
@@ -314,7 +312,8 @@ NMA_res_JAGS<-bind_rows(NMA_res_JAGS, .id = "simulation")%>%
   mutate(jagsseedval=jagsseedval,bias=TE_NMR -es_logOR,
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
-         length=uci_NMR-lci_NMR )
+         length=uci_NMR-lci_NMR )%>%
+  mutate(fileloc=unique(data2[[1]]$fileloc))
 # write.csv(NMA_res_JAGS,paste(loopdir,"/NMAjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
 saveRDS(NMA_res_JAGS, file = paste(loopdir,"/NMAjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
@@ -335,7 +334,8 @@ ind_res_JAGS<-bind_rows(ind_res_JAGS, .id = "simulation")%>%
   mutate(jagsseedval=jagsseedval,bias=TE_NMR -es_logOR,
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
-         length=uci_NMR-lci_NMR )
+         length=uci_NMR-lci_NMR )%>%
+  mutate(fileloc=unique(data2[[1]]$fileloc))
 # write.csv(ind_res_JAGS,paste(loopdir,"/Ijagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
 saveRDS(ind_res_JAGS, file = paste(loopdir,"/Ijagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
@@ -357,7 +357,8 @@ ind_UMIE_res_JAGS<-bind_rows(ind_UMIE_res_JAGS, .id = "simulation")%>%
   mutate(jagsseedval=jagsseedval,bias=TE_NMR -es_logOR,
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
-         length=uci_NMR-lci_NMR )
+         length=uci_NMR-lci_NMR )%>%
+  mutate(fileloc=unique(data2[[1]]$fileloc))
 # write.csv(ind_UMIE_res_JAGS,paste(loopdir,"/IUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
 saveRDS(ind_UMIE_res_JAGS, file = paste(loopdir,"/IUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
@@ -380,7 +381,8 @@ common_res_JAGS<-bind_rows(common_res_JAGS, .id = "simulation")%>%
   mutate(jagsseedval=jagsseedval,bias=TE_NMR -es_logOR,
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
-         length=uci_NMR-lci_NMR )
+         length=uci_NMR-lci_NMR )%>%
+  mutate(fileloc=unique(data2[[1]]$fileloc))
 # write.csv(common_res_JAGS,paste(loopdir,"/Cjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
 saveRDS(common_res_JAGS, file = paste(loopdir,"/Cjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
@@ -402,40 +404,11 @@ common_UMIE_res_JAGS<-bind_rows(common_UMIE_res_JAGS, .id = "simulation")%>%
          bias=TE_NMR -es_logOR,
          coverage_TE=ifelse(es_logOR>=lci_NMR &es_logOR<=uci_NMR,TRUE,FALSE),
          mse=(bias^2)+(seTE_NMR^2),
-         length=uci_NMR-lci_NMR )
+         length=uci_NMR-lci_NMR )%>%
+  mutate(fileloc=unique(data2[[1]]$fileloc))
 # write.csv(common_UMIE_res_JAGS,paste(loopdir,"/CUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".csv",sep=""))
 saveRDS(common_UMIE_res_JAGS, file = paste(loopdir,"/CUjagsres_binary_",true_assumption,ifelse(true_consistency==FALSE,"_UMIE_","_"),true_arms,"_",seedval,".rds",sep=""), compress="xz")
 
 stopCluster(cl)
 gc()
 rm(list=ls()[!ls()%in%c(ws_snapshot,"ws_snapshot")])
-# combine res ###################################
-
-outputdir<-paste(loopdir,"/",sep="")
-myfiles<-list.files(outputdir,full.names = TRUE)
-my_jagscsv<-myfiles[grepl("\\.rds", myfiles)==TRUE]
-my_jagscsv<-my_jagscsv[grepl("jagsres", my_jagscsv)==TRUE]
-my_jagscsv<-my_jagscsv[grepl(seedval, my_jagscsv)==TRUE]
-my_jagscsv<-my_jagscsv[grepl(paste("_",true_assumption,"_",sep=""), my_jagscsv)==TRUE]
-my_jagscsv<-my_jagscsv[as.numeric(grepl("UMIE", my_jagscsv))==((true_consistency-1)*-1)]
-my_jagscsv<-my_jagscsv[grepl(true_arms, my_jagscsv)==TRUE]
-
-all_jags_res_df<-NULL
-for(csvi in 1:length(my_jagscsv)){
-  all_jags_res_df<-readRDS(my_jagscsv[csvi])%>%#read.csv(my_jagscsv[csvi])
-    mutate(filename=my_jagscsv[csvi])%>%
-    bind_rows(all_jags_res_df)
-}
-all_jags_res_df<-all_jags_res_df%>%
-  mutate(src="JAGS",
-         comp_num=as.integer(comp_num),
-         ref_num=as.integer(ref_num),
-         model=case_when(grepl("CUjagsres",filename)~"common\nUMIE",
-                         grepl("IUjagsres",filename)~"ind\nUMIE",
-                         grepl("Cjagsres",filename)~"common",
-                         grepl("Ijagsres",filename)~"ind",
-                         grepl("NMAjagsres",filename)~"NMA",
-                         TRUE~"other"))%>%
-  rename(rowname=rowname.x)%>%
-  select(-c(rowname.y,graphname,  graphname2))%>%
-  mutate_if(is.character,function(x) as.factor(x))
