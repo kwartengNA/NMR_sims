@@ -5,7 +5,8 @@
 temp.*
 mobetex.R
 packages.R
-*all_res*
+# all_res files are often too large
+*all_res* 
 *temp/*
 old/
 *.lnk
@@ -16,3 +17,5 @@ old/
 man/
 *.Rproj
 create_sims_gs.R
+# seed 120 are test runs
+*/seed_120/*
