@@ -38,20 +38,20 @@ if(exists("all_jags_res_df")==FALSE | is.null(all_jags_res_df)){
   all_jags_res_df<-NULL
   } else{
     all_jags_res_df<-all_jags_res_df%>%
-      mutate(simulation=as.integer(simulation))
+      mutate(simulation=as.integer(as.character(simulation)))
   }
 if(exists("all_freq_res_df")==FALSE){
   all_freq_res_df<-NULL
 } else {
   all_freq_res_df<-all_freq_res_df%>%
-    mutate(simulation=as.integer(simulation),
+    mutate(simulation=as.integer(as.character(simulation)),
            filename=paste0(loopdir,"/all_freq_res_df.rds"))
 }
 if(exists("std_freq_res_df")==FALSE){
   std_freq_res_df<-NULL
 } else {
   std_freq_res_df<-std_freq_res_df%>%
-    mutate(simulation=as.integer(simulation),
+    mutate(simulation=as.integer(as.character(simulation)),
            filename=paste0(loopdir,"/std_freq_res_df.rds"))
 }
 

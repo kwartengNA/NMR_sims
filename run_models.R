@@ -117,8 +117,8 @@ for (true_consistency in consistency_options) {
                     N.sim<-ifelse(exists("N.sim")==FALSE,length(data2),N.sim)
                     data2<-data2[1:N.sim]
                     
-                    # source("run_models/Run_JAGS_Models_Bin_all.R")
-                    # source("run_models/Run_JAGS_Models_Bin_std.R")# in case data gen Ival differs from treatment order
+                    source("run_models/Run_JAGS_Models_Bin_all.R")
+                    source("run_models/Run_JAGS_Models_Bin_std.R")# in case data gen Ival differs from treatment order
                     # gc()
                     
                     source("run_models/Run_Frequentist_Models_Bin2.R")

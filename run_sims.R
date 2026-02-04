@@ -14,10 +14,10 @@ NS <- 4   # number of studies per comparison (NS*NT for multi-arm)
 # 
 ### Scenario Definitions ############################
 consistency_options <- c(TRUE, FALSE)
-assumption_options <- "NMA"#c("common", "independent","NMA")#
+assumption_options <- c("common", "independent","NMA")#
 arm_options <- c("mixarm", "multiarm", "twoarm")
-tau_options <- "moderate3" #c("none", "moderate","moderate3") # none moderate moderate3
-density_options <- "full"#c("low", "moderate_dense","moderate","moderate_sparse","full")# "moderate_dense","moderate","moderate_sparse","full"
+tau_options <- c("none", "moderate","moderate3") # none moderate moderate3
+density_options <- c("low", "moderate_dense","moderate","moderate_sparse","full")# "moderate_dense","moderate","moderate_sparse","full"
 event_rate_options <- c("moderate")
 outcome_options <- c("binary")
 interaction_direction_options <- c("positive")
