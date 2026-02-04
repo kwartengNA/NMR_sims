@@ -122,7 +122,6 @@ for(filei in c(outputfiles$val)){
   starttime<-Sys.time()
   param_res<-withTimeout({lapply(param_res, function(x){
     x%>%
-      mutate(fileloc=gsub("C:/Users/kwarteng/Documents/NMR_simulation_project/NMR_sims/|C:/Users/kwarteng/Documents/NMR_simulation_project/mobaxterm/","",fileloc))%>%
       left_join(attribute_set, by=c("fileloc"))%>%
       filter((true_assumption=="NMA" & true_consistency==TRUE)|
                (true_assumption!="NMA"))%>%
@@ -136,7 +135,6 @@ for(filei in c(outputfiles$val)){
   starttime<-Sys.time()
   diag_res<-withTimeout({lapply(diag_res, function(x){
     x%>%
-      mutate(fileloc=gsub("C:/Users/kwarteng/Documents/NMR_simulation_project/NMR_sims/|C:/Users/kwarteng/Documents/NMR_simulation_project/mobaxterm/","",fileloc))%>%
       left_join(attribute_set, by=c("fileloc"))%>%
       filter((true_assumption=="NMA" & true_consistency==TRUE)|
                (true_assumption!="NMA"))%>%
