@@ -1,33 +1,78 @@
-# Model Fitting Script
-# Setup ############################
+# Simulation Script. Calls Generation, Model fit, and creates summary statistics.
+# In practice segments may need to be called separately to accommodate memory
+### Setup ############################
 options(save.workspace = "no")
-num_cores <- 10
+num_cores <- 2
 gendir <- getwd()
-seedval <- 120
+seedval <- 545
 N.sim <- 1000
+NT <- 7   # number of treatments
+NS <- 4   # number of studies per comparison (NS*NT for multi-arm)
 
 # Custom library path
 .libPaths(c("/h/kwarteng/mypkgs", .libPaths()))
-
-# Scenario Definitions ############################
+# 
+### Scenario Definitions ############################
 consistency_options <- c(TRUE, FALSE)
-assumption_options <- c("common", "independent","NMA")# 
-arm_options <- c("mixarm", "multiarm", "twoarm") 
-tau_options <- c("none", "moderate", "high") 
-density_options <- c("low", "moderate", "all")
-event_rate_options <- c("moderate") 
-outcome_options <- c("binary") 
+assumption_options <- "NMA"#c("common", "independent","NMA")#
+arm_options <- c("mixarm", "multiarm", "twoarm")
+tau_options <- "moderate3" #c("none", "moderate","moderate3") # none moderate moderate3
+density_options <- "full"#c("low", "moderate_dense","moderate","moderate_sparse","full")# "moderate_dense","moderate","moderate_sparse","full"
+event_rate_options <- c("moderate")
+outcome_options <- c("binary")
 interaction_direction_options <- c("positive")
 
 # Libraries and Functions ############################
 library(parallel)
 library(dplyr)
+library(dtplyr)
 library(tidyr)
 library(jagsUI)
 library(netmeta)
+library(R.utils)
+library(mcstatsim)
 source("netmetareg.R") # custom functions for UMIE
 
 # Functions ############################
+# Convert tau text label to numeric value
+get_tau <- function(label) {
+  dplyr::case_when(
+    label == "none"     ~ 0,
+    # label == "moderate" ~ 0.25,
+    # label == "moderate" ~0.24, #doi:10.1093/ije/dys041. Semi Objective Non Pharmacological
+    # label == "moderate2" ~0.36, #doi:10.1093/ije/dys041. Subjective Non Pharmacological
+    label == "moderate" ~ 0.28, # https://onlinelibrary.wiley.com/doi/epdf/10.1002/sim.6381 # median rlnorm(10000,-2.56,1.74)
+    label == "moderate3" ~0.5#, # 3rd quartile rlnorm(10000,-2.56,1.74)
+    # label == "high"     ~ 1 # Seide
+  )
+}
+
+# Convert density label to numeric proportion
+get_keep_prop <- function(label) {
+  dplyr::case_when(
+    label == "full"      ~ 1,
+    label == "all"      ~ 1,
+    label == "moderate_dense" ~ 0.75,
+    label == "moderate" ~ 0.5,
+    label == "moderate_sparse" ~ 0.35,
+    label == "low"      ~ 0.25
+  )
+}
+
+# Event rate ranges
+get_event_range <- function(rate) {
+  minr <- dplyr::case_when(
+    rate == "rare"     ~ 0.03,
+    rate == "moderate" ~ 0.3,
+    rate == "frequent" ~ 0.95
+  )
+  maxr <- dplyr::case_when(
+    rate == "rare"     ~ 0.05,
+    rate == "moderate" ~ 0.6,
+    rate == "frequent" ~ 0.97
+  )
+  list(min = minr, max = maxr)
+}
 
 # Build directory path for results
 build_loopdir <- function(outcome, arms, consistency, assumption, tau, density, interaction_direction, event_rate) {
@@ -44,7 +89,7 @@ build_loopdir <- function(outcome, arms, consistency, assumption, tau, density, 
 # Exclusion logic
 should_skip <- function(outcome, event_rate, interaction_direction, arms, density, consistency, assumption) {
   if (outcome == "continuous" && (event_rate != "moderate" || interaction_direction != "positive")) return(TRUE)
-  if (arms == "multiarm" && (density != "all" || !consistency)) return(TRUE)
+  if (arms == "multiarm" && (! density %in% c("full","all") || !consistency)) return(TRUE)
   if (assumption == "NMA" && !consistency) return(TRUE)
   FALSE
 }
@@ -56,145 +101,40 @@ is_cluster_active <- function() {
   }, error = function(e) FALSE)
 }
 
+# Calculate number of mixarm studies if relevant
+# 10% comparisons from three-arm studies 
+# calculate multiarm based on NT. satisfies 
+# .132=nmulti/(nmulti+n2arm)
+# n2arm=(3 * choose(NT, 2))-(nmulti*3)
 
-# Tracking Information for Loop ############################
-loopnum <- 0
-status_frame <- data.frame()
-starttime_loop <- Sys.time()
-
-
-# Model Fitting Loop ############################
-for (true_consistency in consistency_options) {
-  for (true_assumption in assumption_options) {
-    for (true_arms in arm_options) {
-      for (tau_txt in tau_options) {
-        for (keep_prop_txt in density_options) {
-          for (interaction_direction in interaction_direction_options) {
-            for (event_rate in event_rate_options) {
-              for (outcome in outcome_options) {
-                
-                # Check Inputs ############################
-                if (should_skip(outcome, event_rate, interaction_direction, true_arms, keep_prop_txt, true_consistency, true_assumption)==TRUE){ next}
-                keepls <- c(ls(), 
-                            "N.arms","keepls")
-                
-                loopdir <- build_loopdir(outcome, true_arms, true_consistency, true_assumption, tau_txt, keep_prop_txt, interaction_direction, event_rate)
-                
-                status_list <- list(
-                  true_consistency = true_consistency,
-                  true_assumption = true_assumption,
-                  true_arms = true_arms,
-                  tau_txt = tau_txt,
-                  keep_prop_txt = keep_prop_txt,
-                  outcome = outcome,
-                  interaction_direction = interaction_direction,
-                  event_rate = ifelse(outcome == "continuous", NA, event_rate))
-                
-                
-                ##################################
-                print(loopdir) # so we know the status before the loop finishes
-                # Fit Models  ############################
-                if (outcome == "continuous") {
-                  tryCatch({
-                    refdat<-readRDS(file = paste(loopdir,"/refdat_continuous.rds",sep=""))
-                    data2_df<-readRDS(file = paste(loopdir,"/data2_continuous.rds",sep=""))
-                    data2<-split(data2_df, data2_df$sim)
-                    es_MD<-refdat$Estimate[refdat$Reference=="A" & refdat$paramtype=="es"]
-                    beta_x<-refdat$Estimate[refdat$Reference=="A" & refdat$paramtype=="beta_x"]
-                    jagsseedval<-seedval
-                    N.sim<-ifelse(exists("N.sim")==FALSE,length(data2),N.sim)
-                    data2<-data2[1:N.sim]
-                    gc()
-                    
-                    source("run_models/Run_JAGS_Models_Cont_all.R")
-                    gc()
-                    source("run_models/Run_Frequentist_Models_Cont2.R")
-                    gc()
-                    source("run_models/Output_Models.R") 
-                    saveRDS(all_res, file = paste(loopdir,"/res_continuous.rds",sep=""), compress="xz")
-                    gc()
-                    
-                  }, error = function(e) {
-                    message("Error in continuous sim: ", e$message)
-                    status_list$success <- FALSE
-                  })
-                } else if (outcome == "binary") {
-                  tryCatch({
-                    refdat<-readRDS(file = paste(loopdir,"/refdat_binary.rds",sep=""))
-                    data2_df<-readRDS(file = paste(loopdir,"/data2_binary.rds",sep=""))
-                    data2_df$sim<-as.numeric(data2_df$sim) # so that they retain numeric order
-                    data2<-split(data2_df, data2_df$sim)
-                    rm(data2_df)
-                    gc()
-                    es_lOR<-refdat$Estimate[refdat$Reference=="A" & refdat$paramtype=="es"]
-                    beta_x<-refdat$Estimate[refdat$Reference=="A" & refdat$paramtype=="beta_x"]
-                    jagsseedval<-seedval
-                    N.sim<-ifelse(exists("N.sim")==FALSE,length(data2),N.sim)
-                    data2<-data2[1:N.sim]
-                    
-                    source("run_models/Run_JAGS_Models_Bin_all.R")
-                    #source("run_models/get_jags_sims.R") # if they have been previously run, switch to get jags to save time
-                    gc()
-                    source("run_models/Run_Frequentist_Models_Bin2.R")
-                    saveRDS(all_freq_res_df, file = paste(loopdir,"/all_freq_res_df.rds",sep=""), compress="xz")
-                    gc()
-                    source("run_models/Output_Models.R")
-                    saveRDS(all_res, file = paste(loopdir,"/res_binary.rds",sep=""), compress="xz")
-                    gc()
-                    status_list["success"]<-TRUE
-                  }, error = function(e) {
-                    message("Error in binary sim: ", e$message)
-                    status_list$success <- FALSE
-                  })
-                }
-                
-                on.exit(stopCluster(cl))
-                
-                # Update status, print to screen, cleanup ############################
-                # assign(paste("dat.studies_merge", keep_prop_txt, true_arms, sep="_"), dat.studies_merge)
-                loopnum <- loopnum + 1
-                status_list$loopnum <- loopnum
-                status_list$duration <- Sys.time() - starttime_loop
-                status_frame <- bind_rows(status_frame, status_list)
-                
-                print(loopnum)
-                print(loopdir)
-                print(Sys.time() - starttime_loop)
-                
-                rm(list = ls()[!ls() %in% keepls])
-                gc()
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+ctmixarm <- function(NT,NS) {
+  nmulti <- 0.132*NS * choose(NT, 2) / (1-0.132+(0.132*NS))
+  n2arm <- (NS * choose(NT, 2)) - (nmulti * NS)
+  list(nmulti = nmulti, n2arm = n2arm)
 }
 
-# Summary Check  ############################
-endtime_loop <- Sys.time()
-total_time <- endtime_loop - starttime_loop
 
-expected <- expand.grid(
-  true_consistency = consistency_options,
-  true_assumption = assumption_options,
-  true_arms = arm_options,
-  tau_txt = tau_options,
-  keep_prop_txt = density_options,
-  outcome = outcome_options,
-  interaction_direction = interaction_direction_options,
-  event_rate = c(event_rate_options, NA)) %>%
-  filter(
-    !(outcome == "continuous" & !is.na(event_rate)),
-    !(true_arms == "multiarm" & keep_prop_txt != "all"),
-    !(outcome == "binary" & is.na(event_rate))) %>%
-  mutate(expected = TRUE)
+keepsettings<-c(ls(),"keepsettings")
+# generate simulated data ##########
+source("gen_sims.R")
+source("simulate_data/combine_simulated_data.R")
+gc()
+keepsettings<-c(keepsettings,"all_refdat", "alldata2")
+rm(list=ls()[!ls()%in%keepsettings])#reset workspace for memory management
+gc()
+### if separating data generation and modelling, import generated data ##########
+# all_refdat <- readRDS(paste(gendir, paste("seed_", seedval,sep=""),"all_refdat.rds", sep="/"))
+# alldata2 <- readRDS(paste(gendir, paste("seed_", seedval,sep=""),"all_data.rds", sep="/"))
+# run models ##########
+source("run_models.R")
+rm(list=ls()[!ls()%in%keepsettings])
+gc()
 
-expected %>%
-  full_join(status_frame %>%
-              mutate(attempted = TRUE,
-                     true_consistency = as.logical(true_consistency))) %>%
-  count(true_arms, outcome, expected, attempted, success)
-
-
+# extract and combine results ###############
+source("explore_results/check_sims.R")
+rm(list=ls()[!ls()%in%keepsettings])
+gc()
+# process results for shiny app #############
+source("explore_results/shiny_transformations.R")
+rm(list=ls()[!ls()%in%keepsettings])
+gc()
