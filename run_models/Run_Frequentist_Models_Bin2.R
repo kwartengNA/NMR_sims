@@ -311,7 +311,7 @@ clusterEvalQ(cl, {
 })
 
 clusterExport(cl, "data2")
-data2_pairwise<-parLapply(cl,data2, function(x) pairwise(treat=treatment,n = n,event = events,studlab=study,data=x,sm="OR"))
+data2_pairwise<-parLapply(cl,data2, function(x) pairwise(treat=treatment,n = n,event = r,studlab=study,data=x,sm="OR"))
 
 clusterExport(cl,c("data2_pairwise"))
 clusterExport(cl, "run_netmeta") #netmeta with trycatch
@@ -335,7 +335,7 @@ clusterExport(cl, "run_common_UMIE")
 common_UMIE_res=parLapply(cl,1:N.sim, function(x) run_common_UMIE(data2_netmeta[[x]]))
 
 clusterExport(cl, "run_ind_UMIEmax")
-ind_UMIE_resmin=parLapply(cl,1:N.sim, function(x) run_ind_UMIEmax(data2_netmeta[[x]]))
+ind_UMIE_resmax=parLapply(cl,1:N.sim, function(x) run_ind_UMIEmax(data2_netmeta[[x]]))
 
 # extract bias estimates ################
 ## NMA #################
@@ -433,7 +433,7 @@ ind_UMIE_res<-bind_rows(ind_UMIE_res, .id = "simulation")%>%
 
 
 ## IND UMIE v2 ###############
-ind_UMIE_resmin<-bind_rows(ind_UMIE_resmin, .id = "simulation")%>%
+ind_UMIE_resmax<-bind_rows(ind_UMIE_resmax, .id = "simulation")%>%
   tidyr::pivot_longer(cols = c(contains("_beta_"),
                                contains("_d_"),
                                contains("_tau_"),
@@ -452,8 +452,8 @@ ind_UMIE_resmin<-bind_rows(ind_UMIE_resmin, .id = "simulation")%>%
          length=uci_NMR-lci_NMR )
 
 # combine res ######################
-all_freq_res_df<-bind_rows("ind\nUMIE\nmax"=ind_UMIE_res,
-							"ind\nUMIE\nmin"=ind_UMIE_resmin,
+all_freq_res_df<-bind_rows("ind\nUMIE\nmin"=ind_UMIE_res,
+							"ind\nUMIE\nmax"=ind_UMIE_resmax,
                            "ind"=ind_res,
                            "common"=common_res,
                            "common\nUMIE"=common_UMIE_res,
