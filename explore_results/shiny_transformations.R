@@ -87,10 +87,11 @@ diag_res2<-graph_res2%>%count(density, density_txt, fileloc, tau, tau_txt)%>%sel
 # alldata ########
 gc()
 alldata<-readRDS(file=paste(gendir, paste("seed_", seedval,sep=""),"all_data.rds", sep="/"))
-  
+
 alldata2<-alldata%>%
     as.data.frame()%>%
-    mutate(fileloc=gsub("C:/Users/kwarteng/Documents/NMR_sims/|/data2_binary.rds", "",fileloc),
+    mutate(fileloc=gsub("^.*(?=seed)", "",fileloc, perl=TRUE),
+           fileloc=gsub("/data2_binary.rds", "",fileloc),
            simulation=as.integer(sim),
            master_scenarionum=as.numeric(as.factor(fileloc)),
            scenario_sim=paste(master_scenarionum, sim),
@@ -98,10 +99,10 @@ alldata2<-alldata%>%
     select(-c(density, tau, tau_txt))%>%
     right_join(graph_res2%>%select(fileloc, scenarionum, true_arms, true_consistency, true_assumption,density_txt, density, tau_txt, tau)%>%distinct())%>%
   select(-c(comparison, study.y, 
-            seed, outcome, interaction, events, output, consistency_txt, interaction_direction, event_rate, keep_prop_txt, keep_prop_txt,study_reference_treat=treat.ref,
+            seed, outcome, interaction, output, consistency_txt, interaction_direction, event_rate, keep_prop_txt, keep_prop_txt,study_reference_treat=treat.ref,
             study, master_scenarionum, sim))%>%
     select(scenarionum, true_arms, true_consistency, true_assumption,density_txt, density, tau_txt, tau,network, networkid, simulation, studlab, xcov, treatment, arm_directionality=Ival_std, 
-           events=r,everything())
+           events,everything())
 
 # alldata3 <-alldata2%>%
 #   group_by(scenarionum,networkid)%>%# unique networks

@@ -8,9 +8,9 @@ library(ggpattern)
 library(shinycssloaders)
 # library(plotly)
 # import data ###############
-graph_res<-readRDS(file="shiny_results/graph_res.rds")
-diag_res<-readRDS(file="shiny_results/diag_res.rds")
-alldata2<-readRDS(file="shiny_results/input_data.rds")
+graph_res<-readRDS(file="shiny_results/seed_545/graph_res.rds")
+diag_res<-readRDS(file="shiny_results/seed_545/diag_res.rds")
+alldata2<-readRDS(file="shiny_results/seed_545/input_data.rds")
 N.sim<- max(as.numeric(diag_res$simulation))
 gc()
 
@@ -21,8 +21,7 @@ graph_res<-graph_res%>%
 
 diag_res<-diag_res%>%
   mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")),
-         parameter=ifelse(parameter=="tau", "\u03C4", parameter))%>%
-  rename(Source=src)
+         parameter=ifelse(parameter=="tau", "\u03C4", parameter))
 
 alldata2<-alldata2%>%
   mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")))

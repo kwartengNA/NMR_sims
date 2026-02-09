@@ -101,9 +101,9 @@ for(filei in c(outputfiles$val)){
   
   # define attributes and link to fileloc to prevent multiple separate() runs
   attribute_set<-data.frame("fileloc"=names(param_res))%>%# if imported
-    mutate(fileloc=gsub("C:/Users/kwarteng/Documents/NMR_simulation_project/mobaxterm/","",fileloc))%>%
-    # data.frame("fileloc"=gsub("C:/Users/kwarteng/Documents/NMR_sims/","",outputfiles$val))%>%#if continuation
-    tidyr::separate(col=fileloc, into = paste("vals", 1:10, sep=""), sep = "/", remove = FALSE)%>%
+    mutate(temploc=gsub(gendir,"",fileloc),
+           temploc=gsub("//","/", temploc))%>%
+    tidyr::separate(col=temploc, into = paste("vals", 1:10, sep=""), sep = "/", remove = FALSE)%>%
     mutate(filenum=as.numeric(as.factor(fileloc)))%>%
     rename(seed=vals2, outcome=vals3,true_arms=vals4, 
            # output, 
@@ -234,7 +234,7 @@ for(filei in c(outputfiles$val)){
   man_mse<-lapply(param_res,function(x) mean(x$mse)) # this mse is bias^2 +se^2
   names(man_mse)<-paste(names(man_mse),".man_mse",sep="")
   
-  CI_length<-lapply(param_res,function(x) mean(x$length)) # this mse is bias^2 +se^2
+  CI_length<-lapply(param_res,function(x) mean(x$length))
   names(CI_length)<-paste(names(CI_length),".CI_length",sep="")
   # param_resbkup<-param_res
   param_res<-data.frame("est"=c(unlist(bias),
