@@ -17,10 +17,8 @@ graph_res2<-graph_res%>%
                                           "connect_low")))%>%
   mutate(true_model=trimws(paste(ifelse(true_assumption=="independent","ind",true_assumption), ifelse(true_consistency==FALSE, "UMIE",""))))%>%
   mutate(tau=as.factor(ifelse(tau_txt=="moderate3","tau_high", as.character(tau))),
-         tau_txt=as.factor(ifelse(tau_txt=="moderate3","high", as.character(tau_txt))))%>%
-  # filter(density!="connect_low")%>%
-  # filter(model!="ind\nUMIE\nmax")%>%
-  # filter(model!="common_old")%>%
+         tau_txt=as.factor(ifelse(tau_txt=="moderate3","high", as.character(tau_txt))),
+         tau_txt=factor(tau_txt, levels = c("none", "moderate", "high")))%>%
   mutate(densitybkup=density,
          density=case_when(densitybkup=="connect_full"~100,
                            densitybkup=="connect_moderate"~50,
@@ -28,6 +26,7 @@ graph_res2<-graph_res%>%
                            densitybkup=="connect_moderate_sparse"~35,
                            densitybkup=="connect_low"~25,
                            TRUE~as.numeric(NA)),
+         keep_prop_txt=factor(keep_prop_txt, levels=c("moderate_sparse", "moderate", "moderate_dense", "full")),
          comp=ifelse(comp=="NA NA", NA, comp),
          reference_treat=substr(comp,3,3),
          comparator_treat=substr(comp,1,1))%>%
@@ -44,8 +43,8 @@ graph_res2<-graph_res%>%
                          model%in%c("ind\nUMIE","ind\nUMIE\nmin")~"independent\nUMIE",
                          TRUE~model),
          model=paste0(toupper(substr(model,1,1)),substr(model,2,nchar(model))),
-         # model=factor(model,
-         #              levels=c("NMA", "Common", "Independent", "Independent\nUMIE", "Common\nUMIE")),
+         model=factor(model,
+                      levels=c("NMA", "Common", "Independent", "Independent\nUMIE", "Common\nUMIE")),
          heterogeneity_num=case_when(tau_txt == "none"     ~ 0,
                                      tau_txt == "moderate"  ~ 0.28, #doi:10.1093/ije/dys041. Semi Objective Non Pharmacological
                                      tau_txt == "high" ~0.5, #doi:10.1093/ije/dys041. Subjective Non Pharmacological
@@ -103,13 +102,6 @@ alldata2<-alldata%>%
             study, master_scenarionum, sim))%>%
     select(scenarionum, true_arms, true_consistency, true_assumption,density_txt, density, tau_txt, tau,network, networkid, simulation, studlab, xcov, treatment, arm_directionality=Ival_std, 
            events,everything())
-
-# alldata3 <-alldata2%>%
-#   group_by(scenarionum,networkid)%>%# unique networks
-#   mutate(num_scenarios=length(unique(scenarionum)),
-#          which_scenarios=paste(unique(scenarionum), collapse=";"))%>%
-#   filter(scenario_sim==min(scenario_sim))%>%
-#   ungroup()
     
   
 # write #####
