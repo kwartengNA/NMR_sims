@@ -1,3 +1,6 @@
+options(ggplot2.discrete.colour= c("#FAA613","#000080", "#D7263D","#FF33CC","#1C77C3", "#4C4C4C","#4AA61C","#FBCEB1"),# expand to 10 colors
+        ggplot2.discrete.fill= c("#FAA613","#000080",  "#D7263D","#FFA3AF","#1C77C3","#4C4C4C", "#4AA61C","#FBCEB1"))
+
 # Applied example EXAMPLE 5. CERTOLIZUMAB: CONTINUOUS COVARIATE PMID: 27905717
 # libs and data ############
 library(readxl)
@@ -21,9 +24,13 @@ n.iter = 30000
 n.burnin = 10000
 
 # example freq NMA ########
+# mydata_long$treatment<-LETTERS[mydata_long$treat]
 mypw<-pairwise(treat = treat, event = events, n = n, studlab = ID,data=mydata_long)
 mynet<-netmeta(mypw)
-netgraph(mynet)
+netgraph(mynet, plastic=FALSE, lwd=0.75,
+         points = TRUE, pch = 21, cex.points = 3, col.points = "black",
+         col = "#000080",
+         bg.points = "#FAA613", thickness = "se.fixed")
 mynma<-netmetareg(mynet, covar =NULL, consistency = TRUE,assumption = "i")
 mynmr_i<-netmetareg(mynet, covar = x, consistency = TRUE,assumption = "i")
 mynmr_c<-netmetareg(mynet, covar = x, consistency = TRUE,assumption = "c")
@@ -186,38 +193,93 @@ NMRiumie_res<-as.data.frame(jags_nmriumie$summary)%>%
                              TRUE~paramtype))
 # list of res ######
 all_res<-NMA_res%>%
-  mutate(model="mynma", src="JAGS")%>%
-  bind_rows(NMRi_res%>%mutate(model="mynmr_i", src="JAGS"))%>%
-  bind_rows(NMRc_res%>%mutate(model="mynmr_c", src="JAGS"))%>%
-  bind_rows(NMRcumie_res%>%mutate(model="mynmr_cumie", src="JAGS"))%>%
-  bind_rows(NMRiumie_res%>%mutate(model="mynmr_iumie", src="JAGS"))%>%
-  bind_rows(mynma$results%>%mutate(model="mynma", src="RMA_MV", type="d"))%>%
-  bind_rows(mynmr_i$results%>%mutate(model="mynmr_i", src="RMA_MV"))%>%
-  bind_rows(mynmr_c$results%>%mutate(model="mynmr_c", src="RMA_MV"))%>%
-  bind_rows(mynmr_iumie$results%>%mutate(model="mynmr_iumie", src="RMA_MV"))%>%
-  bind_rows(mynmr_cumie$results%>%mutate(model="mynmr_cumie", src="RMA_MV"))%>%
+  mutate(model="NMA", src="JAGS")%>%
+  bind_rows(NMRi_res%>%mutate(model="ICIE", src="JAGS"))%>%
+  bind_rows(NMRc_res%>%mutate(model="CCIE", src="JAGS"))%>%
+  bind_rows(NMRcumie_res%>%mutate(model="CUMIE", src="JAGS"))%>%
+  bind_rows(NMRiumie_res%>%mutate(model="IUMIE", src="JAGS"))%>%
+  bind_rows(mynma$results%>%mutate(model="NMA", src="RMA_MV", type="d"))%>%
+  bind_rows(mynmr_i$results%>%mutate(model="ICIE", src="RMA_MV"))%>%
+  bind_rows(mynmr_c$results%>%mutate(model="CCIE", src="RMA_MV"))%>%
+  bind_rows(mynmr_iumie$results%>%mutate(model="IUMIE", src="RMA_MV"))%>%
+  bind_rows(mynmr_cumie$results%>%mutate(model="CUMIE", src="RMA_MV"))%>%
   mutate(lower=coalesce(lower, lci_NMR),
          upper=coalesce(upper, uci_NMR),
          coef=coalesce(coef, TE_NMR),
          se=coalesce(seTE_NMR, se),
          converged=ifelse(Rhat<=1.1|is.na(Rhat),TRUE,FALSE),
-         treat=gsub("X","",coalesce(treat,comp_num)),
+         comp_treat=gsub("X","",coalesce(treat,comp_num)),
+         comp_treat=LETTERS[as.numeric(comp_treat)],
          ref_num=coalesce(ref_num, "1"),
-         comp=ifelse(grepl("comp",treat)==TRUE, 
-                     gsub("\\.comp_","",treat),
-                     paste(ref_num,treat)),
+         ref_treat=LETTERS[as.numeric(ref_num)],
+         comp=ifelse(grepl("comp",treat)==TRUE, gsub("\\.comp_","",treat),
+                     paste(ref_treat,comp_treat)),
          comp=gsub("_vs_"," ",comp),
+         comp=ifelse(grepl("comp",treat)==TRUE,
+                     paste(LETTERS[as.numeric(as.character(gsub(" .*","",comp)))],LETTERS[as.numeric(as.character(gsub(".* ","",comp)))] ),
+                     comp),
          type=case_when(paramtype=="es"~"d",
                         paramtype=="beta_x"~"beta",
                         TRUE~coalesce(type, paramtype)))%>%
-  filter(type%in%c("d","beta") & (ref_num==1|is.na(ref_num)))
+  filter(type%in%c("d","beta"))
+tau_res<-NMA_res%>%
+  mutate(model="NMA", src="JAGS")%>%
+  bind_rows(NMRi_res%>%mutate(model="ICIE", src="JAGS"))%>%
+  bind_rows(NMRc_res%>%mutate(model="CCIE", src="JAGS"))%>%
+  bind_rows(NMRcumie_res%>%mutate(model="CUMIE", src="JAGS"))%>%
+  bind_rows(NMRiumie_res%>%mutate(model="IUMIE", src="JAGS"))%>%
+  bind_rows(data.frame(TE_NMR=sqrt(mynma$tau2))%>%mutate(model="NMA", src="RMA_MV", type="tau"))%>%
+  bind_rows(data.frame(TE_NMR=sqrt(mynmr_i$tau2))%>%mutate(model="ICIE", src="RMA_MV", type="tau"))%>%
+  bind_rows(data.frame(TE_NMR=sqrt(mynmr_c$tau2))%>%mutate(model="CCIE", src="RMA_MV", type="tau"))%>%
+  bind_rows(data.frame(TE_NMR=sqrt(mynmr_iumie$tau2))%>%mutate(model="IUMIE", src="RMA_MV", type="tau"))%>%
+  bind_rows(data.frame(TE_NMR=sqrt(mynmr_cumie$tau2))%>%mutate(model="CUMIE", src="RMA_MV", type="tau"))%>%
+  mutate(lower=lci_NMR,
+         upper=uci_NMR,
+         coef=TE_NMR,
+         se=seTE_NMR,
+         converged=ifelse(Rhat<=1.1|is.na(Rhat),TRUE,FALSE),
+         type=case_when(paramtype=="es"~"d",
+                        paramtype=="beta_x"~"beta",
+                        TRUE~coalesce(type, paramtype)))%>%
+  filter(type%in%c("tau"))
+
+
+rownames(tau_res)<-NULL
 rownames(all_res)<-NULL
+# graphs #########
 all_res%>%
+  filter((ref_num==1|is.na(ref_num)))%>%
   ggplot()+
   geom_pointrange(aes(x=coef, xmin=lower, xmax=upper, y=comp, color=src, shape=converged), position=position_dodge(width=0.5))+
   geom_vline(aes(xintercept = 0))+
   scale_shape_manual(values=c("TRUE"=19,"FALSE"=5))+
   facet_grid(type~model, scales="free")+
+  theme_bw()
+
+tau_res%>%
+  rename(tau=coef)%>%
+  ggplot()+
+  geom_col(aes(y=tau, x=model,fill=src, alpha=converged))+
+  geom_pointrange(aes(y=tau, ymin=lower, ymax=upper, x=model, 
+                      color=src, 
+                      shape=converged))+
+  geom_hline(aes(yintercept = 0))+
+  scale_alpha_manual(values=c("TRUE"=1,"FALSE"=0.5))+
+  scale_shape_manual(values=c("TRUE"=19,"FALSE"=5))+
+  scale_fill_manual(values=c("JAGS"=NA,"RMA_MV"="#FAA613"))+
+  scale_color_manual(values=c("JAGS"="#000080","RMA_MV"=NA))+
+  theme_bw()
+
+tau_res%>%filter(model=="NMA")%>%select(NMA_tau=coef,src)%>%
+  right_join(tau_res)%>%
+  rename(tau=coef)%>%
+  ggplot()+
+  geom_errorbar(aes(y=tau, ymin=lower, ymax=upper, x=model, 
+                    color=src))+
+  geom_point(aes(y=tau, x=model,color=src, shape=converged), size=2)+
+  geom_hline(aes(yintercept = 0))+
+  geom_hline(aes(yintercept = NMA_tau, color=src),lty=2)+
+  scale_shape_manual(values=c("TRUE"=19,"FALSE"=5))+
   theme_bw()
 
 all_res%>%
