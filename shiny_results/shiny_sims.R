@@ -8,10 +8,11 @@ library(ggpattern)
 library(shinycssloaders)
 # library(plotly)
 # import data ###############
-graph_res<-readRDS(file="shiny_results/seed_545/graph_res.rds")
-diag_res<-readRDS(file="shiny_results/seed_545/diag_res.rds")
-alldata2<-readRDS(file="shiny_results/seed_545/input_data.rds")
-N.sim<- max(as.numeric(diag_res$simulation))
+graph_res<-readRDS(file="seed_545/graph_res.rds")
+# diag_res<-readRDS(file="seed_545/diag_res.rds")
+alldata2<-readRDS(file="seed_545/input_data.rds")
+N.sim<- 1000#max(as.numeric(diag_res$simulation))
+
 gc()
 
 # custom transform seed 545 #################
@@ -19,9 +20,9 @@ graph_res<-graph_res%>%
   mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")),
          parameter=ifelse(parameter=="tau", "\u03C4", parameter))
 
-diag_res<-diag_res%>%
-  mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")),
-         parameter=ifelse(parameter=="tau", "\u03C4", parameter))
+# diag_res<-diag_res%>%
+#   mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")),
+#          parameter=ifelse(parameter=="tau", "\u03C4", parameter))
 
 alldata2<-alldata2%>%
   mutate(density=factor(density,levels = levels(density),labels = paste0(levels(density), "%")))
@@ -48,11 +49,11 @@ ui_flex <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      conditionalPanel(
-        condition = "input.main_tabs == 'Diagnostics'",
-        selectInput(inputId="choose_diag", label="Choose Measure", 
-                    choices=list("diagnostics"=unique(diag_res$parameter)), multiple=TRUE, selected="AIC")
-      ),
+      # conditionalPanel(
+      #   condition = "input.main_tabs == 'Diagnostics'",
+      #   selectInput(inputId="choose_diag", label="Choose Measure", 
+      #               choices=list("diagnostics"=unique(diag_res$parameter)), multiple=TRUE, selected="AIC")
+      # ),
       conditionalPanel(
         condition = "['Coverage', 'Bias', 'MSE', 'CI Length','Data','Coverage Comparison','Bias Comparison','CI Length Comparison'].includes(input.main_tabs)",
         selectInput(inputId="choose_coef", label="Choose Parameter", 
@@ -97,11 +98,11 @@ ui_flex <- fluidPage(
         tabPanel(title = "Diagnostics",
                  shinycssloaders::withSpinner(imageOutput('aicplot', height = "80vh"))),
         tabPanel(title = "Coverage Comparison",
-                 imageOutput('coverageComparison_es', height = "120vh"),
-                 imageOutput('coverageComparison_beta', height = "120vh")),
+                 shinycssloaders::withSpinner(imageOutput('coverageComparison_es', height = "120vh")),
+                 shinycssloaders::withSpinner(imageOutput('coverageComparison_beta', height = "120vh"))),
         tabPanel(title = "Bias Comparison",
-                 imageOutput('biasComparison_es', height = "80vh"),
-                 imageOutput('biasComparison_beta', height = "80vh")),
+                 shinycssloaders::withSpinner(imageOutput('biasComparison_es', height = "80vh")),
+                 shinycssloaders::withSpinner(imageOutput('biasComparison_beta', height = "80vh"))),
         tabPanel(title = "Networks",
                  shinycssloaders::withSpinner(imageOutput('networkplot', height = "80vh")), type = 4, color = "#337ab7"),
         tabPanel(title = "Data", 
@@ -125,21 +126,21 @@ ui <- dashboardPage(
                             tabPanel("Bias"),
                             tabPanel("MSE"),
                             tabPanel("CI Length"),
-                            tabPanel("Diagnostics"),
+                            # tabPanel("Diagnostics"),
                             tabPanel("Coverage Comparison"),
                             tabPanel("Bias Comparison"),
-                            tabPanel("CI Length Comparison"),
+                            # tabPanel("CI Length Comparison"),
                             tabPanel("Networks"),
                             tabPanel("Data")
                           ))),
   
   # sidebar ############
   dashboardSidebar(
-    conditionalPanel(
-      condition = "input.main_tabs == 'Diagnostics'",
-      selectInput(inputId="choose_diag", label="Choose Measure", 
-                  choices=list("diagnostics"=unique(diag_res$parameter)), multiple=TRUE, selected="AIC")
-    ),
+    # conditionalPanel(
+    #   condition = "input.main_tabs == 'Diagnostics'",
+    #   selectInput(inputId="choose_diag", label="Choose Measure", 
+    #               choices=list("diagnostics"=unique(diag_res$parameter)), multiple=TRUE, selected="AIC")
+    # ),
     conditionalPanel(
       condition = "['Coverage', 'Bias', 'MSE', 'CI Length','Data','Coverage Comparison','Bias Comparison','CI Length Comparison'].includes(input.main_tabs)",
       selectInput(inputId="choose_coef", label="Choose Parameter", 
@@ -155,12 +156,21 @@ ui <- dashboardPage(
       selectInput(inputId="choose_comparator", label="Choose Comparator Treatment", 
                   choices=list("coefficients"=unique(graph_res$comparator_treat)), multiple=TRUE, selected=unique(graph_res$reference_treat))
     ),
-    
+    # --- DGM Header Section ---
+    tags$div(
+      style = "padding: 15px 10px 5px 10px; font-weight: bold; color: #FFFFFF; border-bottom: 1px solid #E3EEFA; margin-bottom: 10px;",
+      "Choose Data Generating Characteristics"
+    ),
     uiOutput('choose_arms'),
     uiOutput('choose_across_studies'),
     uiOutput('choose_consistency'),
     uiOutput('choose_tau'),
     uiOutput('choose_density'),
+    # --- DGM Header Section ---
+    tags$div(
+      style = "padding: 15px 10px 5px 10px; font-weight: bold; color: #FFFFFF; border-bottom: 1px solid #E3EEFA; margin-bottom: 10px;",
+      "Choose Implemented Model"
+    ),
     uiOutput('choose_model'),
     uiOutput('choose_src'),
     uiOutput('choose_facets'),
@@ -265,11 +275,11 @@ ui <- dashboardPage(
       imageOutput('biasComparison_es', height = "80vh"),
       imageOutput('biasComparison_beta', height = "80vh")
     ),
-    conditionalPanel(
-      condition = "input.main_tabs == 'CI Length Comparison'",
-      imageOutput('cilengthplotComparison_es', height = "80vh"),
-      imageOutput('cilengthplotComparison_beta', height = "80vh")
-    ),
+    # conditionalPanel(
+    #   condition = "input.main_tabs == 'CI Length Comparison'",
+    #   imageOutput('cilengthplotComparison_es', height = "80vh"),
+    #   imageOutput('cilengthplotComparison_beta', height = "80vh")
+    # ),
     conditionalPanel(
       condition = "input.main_tabs == 'Networks'",
       shinycssloaders::withSpinner(imageOutput('networkplot', height = "80vh"))
@@ -399,12 +409,13 @@ server <- function(input, output, session) {
         mutate(sumdir=sum(considered_direct))%>%
         ungroup()
 
-      mynet<-netmeta::netmeta(TE = TE,seTE = seTE,treat1 = treat1,treat2 = treat2,studlab = studlab, data=tmp_pairwise, method.tau = "REML", reference.group = "A")
       if(nrow(tmp_pairwise%>%count(studlab)%>%filter(n>1))>0){
+        mynet<-netmeta::netmeta(TE = TE,seTE = seTE,treat1 = treat1,treat2 = treat2,studlab = studlab, data=tmp_pairwise, method.tau = "REML", reference.group = "A")
         netmeta::netgraph(mynet, plastic=FALSE, 
                           col=tmp_pairwise%>%select(treat1,treat2,sumdir)%>%distinct()%>%arrange(treat1, treat2)%>%mutate(sumdir=as.character(factor(sumdir, levels=direct_evidence_col$sumdir, labels=direct_evidence_col$sumdircol)))%>%pull(sumdir),
                           main=paste(unique(tmp_pairwise$num_scenarios), "Scenarios"), col.multiarm="#B8B8FF", multiarm=TRUE)
       } else {
+        mynet<-netmeta::netconnection(TE = TE,seTE = seTE,treat1 = treat1,treat2 = treat2,studlab = studlab, data=tmp_pairwise, method.tau = "REML", reference.group = "A")
         netmeta::netgraph(mynet, plastic=FALSE, 
                           col=tmp_pairwise%>%select(treat1,treat2,sumdir)%>%distinct()%>%arrange(treat1, treat2)%>%mutate(sumdir=as.character(factor(sumdir, levels=direct_evidence_col$sumdir, labels=direct_evidence_col$sumdircol)))%>%pull(sumdir),
                           main=paste(unique(tmp_pairwise$num_scenarios), "Scenarios"))
