@@ -94,15 +94,19 @@ alldata2<-alldata%>%
            simulation=as.integer(sim),
            master_scenarionum=as.numeric(as.factor(fileloc)),
            scenario_sim=paste(master_scenarionum, sim),
-           studlab=paste(study, sim, master_scenarionum))%>%
+           studlab=paste(study, sim, master_scenarionum),
+           density_txt=gsub("connect_", "", density),
+           tau_txt=gsub("tau_", "", tau))%>%
     select(-c(density, tau, tau_txt))%>%
-    right_join(graph_res2%>%select(fileloc, scenarionum, true_arms, true_consistency, true_assumption,density_txt, density, tau_txt, tau)%>%distinct())%>%
+    right_join(graph_res2%>%select(fileloc, scenarionum, true_arms, true_consistency, true_assumption,density_txt, density, tau_txt, tau)%>%distinct()%>%mutate(fileloc=gsub("^.*(?=seed)", "",fileloc, perl=TRUE)))%>%
   select(-c(comparison, study.y, 
             seed, outcome, interaction, output, consistency_txt, interaction_direction, event_rate, keep_prop_txt, keep_prop_txt,study_reference_treat=treat.ref,
             study, master_scenarionum, sim))%>%
     select(scenarionum, true_arms, true_consistency, true_assumption,density_txt, density, tau_txt, tau,network, networkid, simulation, studlab, xcov, treatment, arm_directionality=Ival_std, 
            events,everything())
     
+gc()
+
   
 # write #####
 readr::write_rds(x = graph_res2, file = paste(gendir, paste("shiny_results/seed_", seedval,sep=""),"graph_res.rds", sep="/"),"xz", compression = 9L)
