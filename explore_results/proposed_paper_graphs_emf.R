@@ -25,8 +25,8 @@ graph_res<-readRDS(file=paste(gendir, paste("seed_", seedval,sep=""),"filter_par
 #   filter(!(model=="NMA" & paramtype=="beta_x"))%>%
 #   mutate(true_model=trimws(paste(ifelse(true_assumption=="independent","ind",true_assumption), ifelse(true_consistency==FALSE, "UMIE",""))))
 
-diag_res<-readRDS(file=paste(gendir, paste("seed_", seedval,sep=""),"diag_res.rds", sep="/"))
-diag_res<-diag_res%>%filter(model!="ind\nUMIE\nmax")
+# diag_res<-readRDS(file=paste(gendir, paste("seed_", seedval,sep=""),"diag_res.rds", sep="/"))
+# diag_res<-diag_res%>%filter(model!="ind\nUMIE\nmax")
 alldata2<-readRDS(file=paste(gendir, paste("seed_", seedval,sep=""),"all_data.rds", sep="/"))
 alldata2<-alldata2%>%
   as.data.frame()%>%
@@ -191,137 +191,55 @@ greylines<-graph_res2 %>%
   filter(grepl("0.35", x) & grepl("0\\\n",x) & 
            grepl("multiarm",x )==FALSE)
 
-# how she anticipates it ##########
-coverage_graph1<-graph_res2%>%
+
+coverage_graph<-graph_res2%>%
+  filter(src=="RMA_MV")%>%
   filter(true_arms!="multiarm")%>%
   filter(paramtype!="tau")%>%
-  mutate(x = interaction((keep_prop_num),heterogeneity_num, sep="\n"))%>%
-  mutate(paramtype=factor(paramtype, levels=c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect", "tau")))%>%
-  ggplot(aes(x = x,y = prop_coverage, color = model, group = interaction(heterogeneity_num,model, true_arms))) +
-  geom_hline(aes(yintercept =yint), data=data.frame(yint = seq((0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), #llimit,
-                                                               (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), # ulimit,
-                                                               0.0001)),color = "lightgrey")+# shaded confidence region
-  geom_hline(aes(yintercept = 0.95), lty=2, linewidth=0.5)+
-  geom_line(linewidth = 1) +
-  # geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_point(size = 2) +
-  facet_grid(true_model~paramtype+true_arms, scales = "free_y", switch="y") +
-  labs(color="Implemented Model")+
-  scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
-  #ggtitle("Bias Across Scenarios")+
-  # ylab(label = "Mean Cov")+
-  scale_y_continuous(labels = function(x) formatC(x, format = "f", digits = 2))+
-  scale_x_discrete(labels=function(x)case_when(grepl("0.35\\\n0\\n",x)==TRUE~gsub("-","",x),
-                                               grepl("0.35",x)==TRUE~gsub("-|twoarm|mixarm","",x),
-                                               TRUE~sub("\\n.*","",x)))+
-  xlab(label = "")+
-  theme_bw() +
-  theme(
-    strip.background = element_rect(fill = c("#F5F8FC")),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 0, hjust = 1, face = "bold"),
-    plot.title = element_text(hjust = 0.5),
-    panel.spacing = unit(0.05, "lines")
-  )
-
-
-
-# how he anticipates it ##########
-coverage_graph2<-graph_res2%>%
-  filter(true_arms!="multiarm")%>%
-  filter(paramtype!="tau")%>%
-  mutate(x = interaction((keep_prop_num),heterogeneity_num,true_arms, sep="\n"))%>%
-  mutate(paramtype=factor(paramtype, levels=c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect", "tau")))%>%
-  ggplot(aes(x = x,y = prop_coverage, color = model, group = interaction(heterogeneity_num,model, true_arms))) +
-  geom_hline(aes(yintercept =yint), data=data.frame(yint = seq((0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), #llimit,
-                                                               (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), # ulimit,
-                                                               0.0001)),color = "lightgrey")+# shaded confidence region
-  geom_hline(aes(yintercept = 0.95), lty=2, linewidth=0.5)+
-  geom_line(linewidth = 1) +
-  geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_point(size = 2) +
-  facet_grid(true_model~paramtype, scales = "free_y", switch="y") +
-  labs(color="Implemented Model")+
-  scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
-  #ggtitle("Bias Across Scenarios")+
-  # ylab(label = "Mean Cov")+
-  scale_y_continuous(labels = function(x) formatC(x, format = "f", digits = 2))+
-  scale_x_discrete(labels=function(x)case_when(grepl("0.35\\\n0\\n",x)==TRUE~gsub("-","",x),
-                                               grepl("0.35",x)==TRUE~gsub("-|twoarm|mixarm","",x),
-                                               TRUE~sub("\\n.*","",x)))+
-  xlab(label = "")+
-  theme_bw() +
-  theme(
-    strip.background = element_rect(fill = c("#F5F8FC")),
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 0, hjust = 1, face = "bold"),
-    plot.title = element_text(hjust = 0.5),
-    panel.spacing = unit(0.05, "lines")
-  )
-
-
-# old coverage #########
-greylines<-graph_res2 %>%
   mutate(x = interaction((keep_prop_num),heterogeneity_num, true_arms, sep="\n"))%>%
-  distinct(x)%>%
-  filter(grepl("0.35", x) & grepl("0\\\n",x) & 
-           grepl("multiarm",x )==FALSE)
-
-coveragegraph<-
-  graph_res2%>%
-  filter(true_arms!="multiarm")%>%
-  filter(paramtype!="tau")%>%
   mutate(printarm=case_when(keep_prop_num==0.35 & heterogeneity_num==0 & comp=="B A"& true_assumption=="NMA" & model=="CCIE" & true_arms=="twoarm"~"Two-Arm",
                             keep_prop_num==0.35 & heterogeneity_num==0 & comp=="B A"& true_assumption=="NMA" & model=="CCIE" & true_arms=="mixarm"~"Mixed-Arm",
                             TRUE~as.character(NA)))%>%
-  mutate(prop_coverage=ifelse(prop_coverage<0.90,0.90,prop_coverage))%>%
-  mutate(x = interaction((keep_prop_num),heterogeneity_num, true_arms, sep="\n"))%>%
-  ggplot()+
+  mutate(prop_coverage2=case_when(model=="NMA" & prop_coverage<=0.8~0.795,
+                                  model=="CCIE" & prop_coverage<=0.8~0.798,
+                                  model=="ICIE" & prop_coverage<=0.8~0.802,
+                                  model=="IUMIE" & prop_coverage<=0.8~0.801,
+                                  model=="CUMIE" & prop_coverage<=0.8~0.805,
+                                  TRUE~prop_coverage),
+         paramtype=factor(paramtype, levels=c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect", "tau")))%>%
+  ggplot(aes(x = x,y = prop_coverage, color = model, group = interaction(heterogeneity_num,model, true_arms))) +
   geom_hline(aes(yintercept =yint), data=data.frame(yint = seq((0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), #llimit,
                                                                (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)), # ulimit,
                                                                0.0001)),color = "lightgrey")+# shaded confidence region
   geom_hline(aes(yintercept = 0.95), lty=2, linewidth=0.5)+
-  geom_col(aes(x=x, y=prop_coverage, fill=model, color=model),#color="white",
-           position=position_dodge(width=0.7), width = 0.5)+
-  scale_y_continuous(limits=c(0.9,1.001),
-                     trans=scales::trans_new(name="sq",
-                                             transform = function(x)x-0.95,
-                                             inverse=function(y) y+0.95),
-                     breaks=c(0.9,
-                              (0.95+qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)),
-                              (0.95-qnorm(1-0.05/2)*sqrt((0.95*(1-0.95))/N.sim)),
-                              seq(0.95,0.999,0.05)),
-                     labels = function(y) {ifelse(y == 0.9, "\u2264 0.90", round(y,2))})+
+  geom_line(lty=1,linewidth = 1) +
   geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_text(aes(label = printarm, x=x,y = 1),hjust = 0, 
-            size = 3, fontface="bold") +
-  facet_grid(true_model~paramtype, scales="free_y", switch="y")+
-  scale_fill_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
+  geom_text(aes(label = printarm, x=x,y = 1.025),hjust = 0, 
+            size = 3, fontface="bold", color="black") +
+  geom_point(aes(y = prop_coverage2, shape=ifelse(prop_coverage<=0.8,"TRUE","FALSE")),size = 2) +
+  facet_grid(true_model~paramtype, scales = "free_y", switch="y") +
+  labs(color="Implemented Model")+
   scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
+  scale_shape_manual(name="Coverage\nProbability \u22640.8",values = c("TRUE"=1, "FALSE"=19))+
+  scale_y_continuous(name = "Coverage Probability",labels = function(x) formatC(x, format = "f", digits = 2), limits = c(0.795,1.025))+
   scale_x_discrete(labels=function(x)case_when(#grepl("0.35\\\n0\\n",x)==TRUE~gsub("-","",x),
     grepl("0.35",x)==TRUE~gsub("-|twoarm|mixarm","",x),
     TRUE~sub("\\n.*","",x)))+
-  theme_bw()+
-  labs(fill="Implemented Model", color="Implemented Model")+
-  ylab(label = "Coverage Proportion")+
   xlab(label = "")+
-  theme(axis.text.x = element_text(angle = 0, hjust = 1, face = "bold"),
-        strip.background = element_rect(fill = c("#F5F8FC")),
-        plot.title = element_text(hjust = 0.5),
-        panel.spacing = unit(0.05, "lines"))
-
-ggdraw(coveragegraph) +
-  draw_label(label = "density:\n\u03c4:",
-             size=calc_element("axis.text.x", coveragegraph$theme)$size,
-             x = 0.045, y = 0.07, hjust = 1, fontface = "bold")
-
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = c("#F5F8FC")),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 0, hjust = 1, face = "bold"),
+    plot.title = element_text(hjust = 0.5),
+    panel.spacing = unit(0.05, "lines"))
 ## export coverage ##########
 
 
 cov_emfsize<-7.3
-emf(file=paste(outputdir,"coverage_exwide1.emf", sep="/"), height=cov_emfsize, width=2.5*cov_emfsize, emfPlus = FALSE)
-# png(file=paste(outputdir,"coverage_exwide.png", sep="/"), height=cov_emfsize, width=2.5*cov_emfsize, units = "in", res=300)
-ggdraw(coveragegraph+
+# emf(file=paste(outputdir,"coverage_exwide1.emf", sep="/"), height=cov_emfsize, width=2.5*cov_emfsize, emfPlus = FALSE)
+png(file=paste(outputdir,"coverage_exwide.png", sep="/"), height=cov_emfsize, width=2.5*cov_emfsize, units = "in", res=300)
+ggdraw(coverage_graph+
          facet_grid(true_model~paramtype, scales="free_y", switch="y")+
          theme(legend.position = "bottom",
                legend.box = "horizontal",
@@ -329,8 +247,8 @@ ggdraw(coveragegraph+
                # legend.key.width = unit(0.3*2, "lines")#png
                legend.key.width = unit(0.3*5, "lines"))) +#emf
          draw_label(label = "density:\n\u03c4:",
-                    size=calc_element("axis.text.x", coveragegraph$theme)$size,
-                    x = 0.045, y = 0.14, hjust = 1, fontface = "bold")
+                    size=calc_element("axis.text.x", coverage_graph$theme)$size,
+                    x = 0.045, y = 0.155, hjust = 1, fontface = "bold")
 dev.off()
 
 # Bias trends in density (heterogeneity is constant) ##########
@@ -343,6 +261,7 @@ greylines<-graph_res2 %>%
 
 biasgraph<-graph_res2%>%
   filter(true_arms!="multiarm")%>%
+  filter(paramtype!="tau")%>%
   mutate(x = interaction((keep_prop_num),heterogeneity_num, true_arms, sep="\n"))%>%
   mutate(paramtype=factor(paramtype, levels=c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect", "tau")))%>%
   mutate(printarm=case_when(keep_prop_num==0.35 & heterogeneity_num==0 & comp%in%c("B A", "NA NA") & true_assumption=="NMA" & model=="CCIE" & true_arms=="twoarm"~"Two-Arm",
@@ -351,8 +270,8 @@ biasgraph<-graph_res2%>%
   ggplot(aes(x = x,y = mean_bias, color = model, group = interaction(heterogeneity_num,model, true_arms))) +
   geom_line(linewidth = 1) +
   geom_hline(aes(yintercept = 0))+
-  geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_text(aes(label = printarm, x=x,y = 0.15),hjust = 0, color="black",size = 3, fontface="bold") +
+  geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW 
+  geom_text(aes(label = printarm, x=x,y = 0.025),hjust = 0, color="black",size = 3, fontface="bold") + #0.3
   geom_point(size = 2) +
   facet_grid(true_model~paramtype, scales = "free_y", switch="y") +
   labs(color="Implemented Model")+
@@ -374,6 +293,42 @@ biasgraph<-graph_res2%>%
   )
 
 
+# Bias for tau ##########
+biasgraph_tau<-
+  graph_res2%>%
+  filter(true_arms!="multiarm")%>%
+  filter(paramtype=="tau")%>%#group_by(true_model)%>%summarise(max(mean_bias))
+  mutate(x = interaction((keep_prop_num),heterogeneity_num, true_arms, sep="\n"))%>%
+  mutate(src=case_when(src=="RMA_MV"~"Frequentist",
+                       src=="JAGS"~"Bayesian",
+                       TRUE~src),
+         paramtype=factor(paramtype, levels=c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect", "tau")))%>%
+  mutate(printarm=case_when(keep_prop_num==0.35 & heterogeneity_num==0 & comp%in%c("B A", "NA NA") & true_assumption=="NMA" & model=="CCIE" & true_arms=="twoarm"~"Two-Arm",
+                            keep_prop_num==0.35 & heterogeneity_num==0 & comp%in%c("B A", "NA NA") & true_assumption=="NMA" & model=="CCIE" & true_arms=="mixarm"~"Mixed-Arm",
+                            TRUE~as.character(NA)))%>%
+  ggplot(aes(x = x,y = mean_bias, color = model, group = interaction(heterogeneity_num,model, true_arms))) +
+  geom_line(linewidth = 1) +
+  geom_hline(aes(yintercept = 0))+
+  geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW 
+  geom_text(aes(label = printarm, x=x,y = 0.13),hjust = 0, color="black",size = 3, fontface="bold") + #0.3
+  geom_point(size = 2) +
+  facet_grid(true_model~src, scales = "free_y", switch="y") +
+  labs(color="Implemented Model")+
+  scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
+  ylab(label = "Mean Bias of \u03c4")+
+  scale_y_continuous(labels = function(x) formatC(x, format = "f", digits = 2))+
+  scale_x_discrete(labels=function(x)case_when(#grepl("0.35\\\n0\\n",x)==TRUE~gsub("-","",x),
+    grepl("0.35",x)==TRUE~gsub("-|twoarm|mixarm","",x),
+    TRUE~sub("\\n.*","",x)))+
+  xlab(label = "")+
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = c("#F5F8FC")),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 0, hjust = 1, face = "bold"),
+    plot.title = element_text(hjust = 0.5),
+    panel.spacing = unit(0.05, "lines")
+  )
 # MSE trends in density (bias2+var) (heterogeneity is constant) ######
 mse_graph<-graph_res2%>%
   filter(true_arms!="multiarm")%>%
@@ -387,7 +342,7 @@ mse_graph<-graph_res2%>%
   geom_line(linewidth = 1) +
   geom_hline(aes(yintercept = 0))+
   geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_text(aes(label = printarm, x=x,y = 2.7),hjust = 0, size = 3, fontface="bold", color="black") +
+  geom_text(aes(label = printarm, x=x,y = 2.7),hjust = 0, size = 3, fontface="bold", color="black") +#1510
   geom_point(size = 2) +
   facet_grid(true_model~paramtype, scales = "free_y", switch="y") +
   labs(color="Implemented Model")+
@@ -410,8 +365,8 @@ mse_graph<-graph_res2%>%
 # size<-700 #if using viewer
 emfsize<-8
   # png("temp.png",height=size, width=2*size)
-emf(file=paste(outputdir,"mse_ex.emf", sep="/"), height=emfsize, width=2*emfsize, emfPlus = FALSE)
-# png(file=paste(gendir, paste("seed_", seedval,sep=""),"temp.png", sep="/"), height=emfsize, width=emfsize*2, units="in", res=300, pointsize=50)
+# emf(file=paste(outputdir,"mse_ex.emf", sep="/"), height=emfsize, width=2*emfsize, emfPlus = FALSE)
+png(file=paste(outputdir,"mse_ex.png", sep="/"), height=emfsize, width=emfsize*2, units="in", res=300, pointsize=50)
 ggdraw(mse_graph+
          theme(
            legend.position = "bottom",
@@ -428,13 +383,13 @@ ggdraw(mse_graph+
            legend.title = element_text(size = 11))) +#emf
   draw_label(label = "density:\n\u03c4:",
              size=calc_element("axis.text.x", mse_graph$theme)$size-0.8,
-             x = 0.045, y = 0.14, hjust = 1, fontface = "bold")
+             x = 0.045, y = 0.12, hjust = 1, fontface = "bold")
 
 dev.off()
 
 
-emf(file=paste(outputdir,"bias_ex.emf", sep="/"), height=emfsize, width=2*emfsize, emfPlus = FALSE)
-# png(file=paste(gendir, paste("seed_", seedval,sep=""),"temp.png", sep="/"), height=emfsize, width=emfsize*2, units="in", res=300, pointsize=50)
+# emf(file=paste(outputdir,"bias_ex.emf", sep="/"), height=emfsize, width=2*emfsize, emfPlus = FALSE)
+png(file=paste(outputdir,"bias_ex.png", sep="/"), height=emfsize, width=emfsize*2, units="in", res=300, pointsize=50)
 ggdraw(biasgraph+
          theme(legend.position = "bottom",
                legend.box = "horizontal",
@@ -449,6 +404,27 @@ ggdraw(biasgraph+
                legend.text = element_text(size = 10),
                legend.title = element_text(size = 11)))+
   draw_label(label = "density:\n\u03c4:",
-             size=calc_element("axis.text.x", mse_graph$theme)$size-0.8,
-             x = 0.045, y = 0.14, hjust = 1, fontface = "bold")
+             size=calc_element("axis.text.x", biasgraph$theme)$size-0.8,
+             x = 0.045, y = 0.12, hjust = 1, fontface = "bold")
 dev.off()
+
+# emf(file=paste(outputdir,"bias_tau.emf", sep="/"), height=emfsize, width=2*emfsize, emfPlus = FALSE)
+png(file=paste(outputdir,"bias_tau.png", sep="/"), height=emfsize, width=emfsize*2, units="in", res=300, pointsize=50)
+ggdraw(biasgraph_tau+
+         theme(legend.position = "bottom",
+               legend.box = "horizontal",
+               legend.key.size = unit(0.3, "lines"),
+               # legend.key.width = unit(0.3*2, "lines")#png
+               legend.key.width = unit(0.3*5, "lines"),#emf
+               axis.text.x=element_text(hjust=0.5),
+               strip.text = element_text(size = 11),
+               text = element_text(size = 12),
+               axis.text = element_text(size = 8), # need to adjust
+               axis.title = element_text(size = 12),
+               legend.text = element_text(size = 10),
+               legend.title = element_text(size = 11)))+
+  draw_label(label = "density:\n\u03c4:",
+             size=calc_element("axis.text.x", biasgraph_tau$theme)$size-0.8,
+             x = 0.045, y = 0.12, hjust = 1, fontface = "bold")
+dev.off()
+
