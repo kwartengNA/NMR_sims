@@ -271,9 +271,9 @@ biasgraph<-graph_res2%>%
   geom_line(linewidth = 1) +
   geom_hline(aes(yintercept = 0))+
   geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW 
-  geom_text(aes(label = printarm, x=x,y = 0.025),hjust = 0, color="black",size = 3, fontface="bold") + #0.3
+  geom_text(aes(label = printarm, x=x,y = 0.40),hjust = 0, color="black",size = 3, fontface="bold") + #0.3
   geom_point(size = 2) +
-  facet_grid(true_model~paramtype, scales = "free_y", switch="y") +
+  facet_grid(true_model~paramtype, switch="y") +
   labs(color="Implemented Model")+
   scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
   #ggtitle("Bias Across Scenarios")+
@@ -334,6 +334,7 @@ mse_graph<-graph_res2%>%
   filter(true_arms!="multiarm")%>%
   filter(paramtype!="tau")%>%
   mutate(x = interaction((keep_prop_num),heterogeneity_num, true_arms, sep="\n"))%>%
+  mutate(mean_man_mse2=ifelse(mean_man_mse>=5,5,mean_man_mse))%>%
   mutate(paramtype=factor(paramtype, levels=c("(Adjusted)\nTreatment Effect", "Treatment:Covariate\nInteraction Effect", "tau")))%>%
   mutate(printarm=case_when(keep_prop_num==0.35 & heterogeneity_num==0 & comp=="B A"& true_assumption=="NMA" & model=="CCIE" & true_arms=="twoarm"~"Two-Arm",
                             keep_prop_num==0.35 & heterogeneity_num==0 & comp=="B A"& true_assumption=="NMA" & model=="CCIE" & true_arms=="mixarm"~"Mixed-Arm",
@@ -342,13 +343,14 @@ mse_graph<-graph_res2%>%
   geom_line(linewidth = 1) +
   geom_hline(aes(yintercept = 0))+
   geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_text(aes(label = printarm, x=x,y = 2.7),hjust = 0, size = 3, fontface="bold", color="black") +#1510
-  geom_point(size = 2) +
-  facet_grid(true_model~paramtype, scales = "free_y", switch="y") +
+  geom_text(aes(label = printarm, x=x,y = 5),hjust = 0, size = 3, fontface="bold", color="black") +#1510
+  geom_point(aes(y=mean_man_mse2,shape=ifelse(mean_man_mse2>=5,"TRUE","FALSE")), size = 2) +
+  facet_grid(true_model~paramtype, switch="y") +
   labs(color="Implemented Model")+
   scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
+  scale_shape_manual(name="Average MSE \u2265 5",values = c("TRUE"=1, "FALSE"=19))+
   ylab(label = "Average Mean Squared Error Across Comparisons")+
-  scale_y_continuous(labels = function(x) formatC(x, format = "f", digits = 2))+
+  scale_y_continuous(labels = function(x) formatC(x, format = "f", digits = 2), limits = c(0,5))+
   scale_x_discrete(labels=function(x)case_when(#grepl("0.35\\\n0\\n",x)==TRUE~gsub("-","",x),
                                                grepl("0.35",x)==TRUE~gsub("-|twoarm|mixarm","",x),
                                                TRUE~sub("\\n.*","",x)))+
