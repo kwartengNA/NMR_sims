@@ -107,9 +107,15 @@ alldata2<-alldata%>%
     
 gc()
 
+unique_networks<-alldata2%>%
+  group_by(networkid, true_assumption, true_consistency, tau_txt, density_txt)%>%# unique networks
+  mutate(num_scenarios=length(unique(scenarionum)),
+         which_scenarios=paste(unique(scenarionum), collapse=";"))%>%
+  filter(scenario_sim==min(scenario_sim))%>%
+  ungroup()
   
 # write #####
 readr::write_rds(x = graph_res2, file = paste(gendir, paste("shiny_results/seed_", seedval,sep=""),"graph_res.rds", sep="/"),"xz", compression = 9L)
 readr::write_rds(x = diag_res2, file = paste(gendir, paste("shiny_results/seed_", seedval,sep=""),"diag_res.rds", sep="/"),"xz", compression = 9L)
-readr::write_rds(x = alldata2, file = paste(gendir, paste("shiny_results/seed_", seedval,sep=""),"input_data.rds", sep="/"),"xz", compression = 9L)
+readr::write_rds(x = unique_networks, file = paste(gendir, paste("shiny_results/seed_", seedval,sep=""),"input_data.rds", sep="/"),"xz", compression = 9L)
 
