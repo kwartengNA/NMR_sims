@@ -9,6 +9,10 @@ packages.R
 *all_res* 
 *temp/*
 old/
+data/*
+# not used in results, and is equivalent to the shiny input
+seed_545/diag_res.rds
+*.dcf
 *.lnk
 *.emf
 *.png
@@ -18,4 +22,4 @@ man/
 *.Rproj
 create_sims_gs.R
 # seed 120 are test runs
-*/seed_120/*
+seed_120/*
