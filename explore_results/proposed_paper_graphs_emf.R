@@ -343,8 +343,10 @@ mse_graph<-graph_res2%>%
   geom_line(linewidth = 1) +
   geom_hline(aes(yintercept = 0))+
   geom_vline(xintercept = greylines$x,linetype = "dashed",color = "grey40", position = position_nudge(-0.5)) + #NEW
-  geom_text(aes(label = printarm, x=x,y = 5),hjust = 0, size = 3, fontface="bold", color="black") +#1510
+  #geom_text(aes(label = printarm, x=x,y = 5),hjust = 0, size = 3, fontface="bold", color="black") +#1510
   geom_point(aes(y=mean_man_mse2,shape=ifelse(mean_man_mse2>=5,"TRUE","FALSE")), size = 2) +
+  geom_text(aes(label = printarm, x=x,y = 20),hjust = 0, size = 3, fontface="bold", color="black") +#1510
+  #geom_point(size = 2) +
   facet_grid(true_model~paramtype, switch="y") +
   labs(color="Implemented Model")+
   scale_color_manual(values=c("NMA"="#FAA613","CCIE"="#000080",  "ICIE"="#D7263D","IUMIE"="#FF33CC","CUMIE"="#1C77C3"))+
